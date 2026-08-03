@@ -22,6 +22,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # separately because their value is ~zero until the last two rounds.
 SKILL = ("QB", "RB", "WR", "TE")
 
+# Only these columns are scoring inputs. Everything else in a projections CSV
+# (bye week, yahoo_id, ceiling, ...) is metadata and must not be scored.
+STAT_KEYS = frozenset(
+    (
+        "pass_yd", "pass_td", "pass_int", "rush_yd", "rush_td",
+        "rec", "rec_yd", "rec_td", "fumble_lost", "two_pt",
+    )
+)
+
 
 @dataclass
 class Player:
@@ -31,6 +40,11 @@ class Player:
     adp: float
     stats: dict[str, float] = field(default_factory=dict)
     points: float = 0.0
+    ceiling: float = 0.0
+    floor: float = 0.0
+    bye: str = ""
+    ecr_best: float = 0.0
+    ecr_worst: float = 0.0
     vorp: float = 0.0
     tier: int = 0
     pos_rank: int = 0
@@ -59,7 +73,15 @@ def load_players(path: str | None = None) -> list[Player]:
     If a `points` column is present it overrides the computed total, so you can
     drop in a source that only publishes fantasy points.
     """
-    path = path or os.path.join(HERE, "data", "projections.SAMPLE.csv")
+    if path is None:
+        path = os.path.join(HERE, "data", "projections.csv")
+    if not os.path.exists(path):
+        raise SystemExit(
+            f"no projections at {path}\n"
+            "build them from free public data first:\n"
+            "    python3 fetch_data.py\n"
+            "    python3 build_projections.py"
+        )
     players: list[Player] = []
     with open(path, newline="") as fh:
         for row in csv.DictReader(fh):
@@ -67,7 +89,7 @@ def load_players(path: str | None = None) -> list[Player]:
                 continue
             stats = {}
             for key, raw in row.items():
-                if key in ("name", "pos", "team", "adp", "points") or raw in (None, ""):
+                if key not in STAT_KEYS or raw in (None, "", "NA"):
                     continue
                 try:
                     stats[key] = float(raw)
@@ -82,6 +104,10 @@ def load_players(path: str | None = None) -> list[Player]:
             )
             if row.get("points"):
                 p.points = float(row["points"])
+            for attr in ("ceiling", "floor", "ecr_best", "ecr_worst"):
+                if row.get(attr):
+                    setattr(p, attr, float(row[attr]))
+            p.bye = (row.get("bye") or "").strip()
             players.append(p)
     return players
 
@@ -137,25 +163,46 @@ def replacement_levels(players: Iterable[Player], league: dict) -> dict[str, flo
 
 
 def assign_tiers(players: list[Player], sensitivity: float = 1.0) -> None:
-    """Break the board into tiers wherever VORP gaps out.
+    """Break the board into tiers.
 
-    Tiers matter more than ranks on draft day: inside a tier you take the guy
-    who'll be gone soonest, across a tier break you don't wait.
+    Tiers matter more than ranks on draft day: inside a tier you take whoever
+    will be gone soonest, across a tier break you don't wait.
+
+    Preferred signal is expert *disagreement*. Each player carries a best- and
+    worst-case consensus rank; while those ranges keep overlapping, the panel
+    can't separate the players and neither should you. A tier ends where the
+    overlap does.
+
+    Falls back to gaps in VORP when rank ranges aren't in the data.
     """
     for pos in {p.pos for p in players}:
         pool = sorted([p for p in players if p.pos == pos], key=lambda x: -x.vorp)
+        for i, p in enumerate(pool, 1):
+            p.pos_rank = i
+
         if len(pool) < 3:
-            for i, p in enumerate(pool, 1):
+            for p in pool:
                 p.tier = 1
-                p.pos_rank = i
             continue
+
+        if all(p.ecr_best and p.ecr_worst for p in pool):
+            # Compare against the tier *leader's* worst case, not a running max:
+            # carrying the max forward lets one high-variance player chain every
+            # remaining player into the same tier.
+            tier, leader_worst = 1, pool[0].ecr_worst
+            for p in pool:
+                if p.ecr_best > leader_worst:  # no overlap with the tier leader
+                    tier += 1
+                    leader_worst = p.ecr_worst
+                p.tier = tier
+            continue
+
         gaps = [pool[i].vorp - pool[i + 1].vorp for i in range(len(pool) - 1)]
         mean = sum(gaps) / len(gaps)
         sd = math.sqrt(sum((g - mean) ** 2 for g in gaps) / len(gaps)) or 1e-9
         threshold = mean + sensitivity * sd
         tier = 1
         for i, p in enumerate(pool):
-            p.pos_rank = i + 1
             p.tier = tier
             if i < len(gaps) and gaps[i] > threshold:
                 tier += 1

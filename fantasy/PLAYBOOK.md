@@ -57,10 +57,11 @@ those are exactly the moments the availability simulator is built to inform.
 ### Tier S — do these before the draft
 
 **1. A draft board calibrated to your exact league.** *(built — `engine.py`)*
-Converts raw projections to your 0.5 PPR scoring, computes flex-aware replacement
+Converts projections to your 0.5 PPR scoring, computes flex-aware replacement
 baselines from *your* lineup requirements, ranks by value over replacement, and
-tiers the board by where value gaps out. The `EDGE` column — value rank minus ADP —
-is a direct list of who the field is systematically mispricing in your format.
+tiers each position by where the expert panel's rank ranges stop overlapping. The
+`EDGE` column — value rank minus consensus rank — is a direct list of who the field
+is systematically mispricing in your format.
 
 **2. A Monte Carlo draft simulator.** *(built — `sim.py`)*
 Two outputs that change decisions:
@@ -119,20 +120,36 @@ one command instead of a re-explanation every week.
 
 ---
 
-## 3. Honest limits
+## 3. The data
 
-**The sample projections in `data/projections.SAMPLE.csv` are placeholder numbers I
-made up to exercise the code.** They are not projections and you should not draft off
-them. Every ranking, VORP figure, and strategy result the tools currently print is a
-demonstration of the machinery, not advice. Replace that file with real projections
-before you trust a single number.
+Everything runs on free public data, pulled with one command and no accounts:
+**nflverse** for actual NFL results, snap counts and injuries; **DynastyProcess**
+for weekly FantasyPros expert consensus rankings plus a player ID map that includes
+Yahoo IDs; **ffopportunity** for expected fantasy points. All three publish plain
+files on GitHub. See the README for how projections are assembled from them.
 
-This session's sandbox has no outbound network access to fantasy data sources
-(Sleeper, FantasyPros, and FantasyFootballCalculator all returned 403 through the
-proxy), so the data-fetching layer has to be run and tested on your own machine.
+## 4. Honest limits
 
-More broadly: projections themselves are a commodity, and you will not out-predict
-the market on raw player talent with a weekend of code. The edge here is **format
-calibration, keeper-adjusted boards, draft-day discipline under a 90-second clock,
-and speed on waivers** — process advantages, which happen to be exactly the ones that
-compound over a season.
+**The projections are the consensus's opinion in your format, not an independent
+one.** Player ordering comes from FantasyPros' expert panel; only the points scale
+is derived from real NFL history under your scoring. The tools cannot tell you the
+consensus is wrong about a player. What they can do — and what your leaguemates
+can't — is convert that consensus into an 8-team 0.5 PPR board with correct
+replacement levels, and tell you who survives your next 10-pick gap.
+
+Rank-to-points mapping assumes the #N finisher in 2026 scores like the #N finisher
+historically. That's a good assumption for the *shape* of the curve, which is all
+VORP and tiers need. It is a bad assumption for any individual player's total, so
+don't read the points column as a prediction.
+
+The consensus board is FantasyPros' full-PPR redraft ranking. It is used only for
+*ordering within position* and as the ADP proxy for opponent behavior, both of which
+are fine. It does mean the simulator assumes your leaguemates draft roughly to
+public consensus — true for most casual 8-team leagues, and improvable once you
+model their actual tendencies (item 3 above).
+
+More broadly: projections are a commodity, and you will not out-predict the market on
+raw player talent with a weekend of code. The edge here is **format calibration,
+keeper-adjusted boards, draft-day discipline under a 90-second clock, and speed on
+waivers** — process advantages, which happen to be exactly the ones that compound
+over a season.

@@ -39,8 +39,14 @@ FLEX_BONUS = 8.0
 BACKUP_PENALTY = 12.0
 
 # Each recent pick at a position pulls that position forward for everyone else.
-RUN_WEIGHT = 4.0
+# Capped, and deliberately small: consensus ranks at the top of the board sit
+# barely a slot apart, so an uncapped nudge compounds — one receiver goes, which
+# makes receivers look better, which pulls another — until every first round is a
+# runaway run at one position and elite backs fall to pick 11. Runs are real but
+# they are a nudge, not a stampede.
+RUN_WEIGHT = 1.5
 RUN_WINDOW = 8
+RUN_CAP = 3
 
 # Nobody takes a kicker or defense before the endgame.
 KDEF_LAST_ROUNDS = 3
@@ -86,7 +92,7 @@ class RunTracker:
             self.recent.pop(0)
 
     def pressure(self, pos: str) -> int:
-        return self.recent.count(norm_pos(pos))
+        return min(self.recent.count(norm_pos(pos)), RUN_CAP)
 
     def copy(self) -> "RunTracker":
         clone = RunTracker(self.window)

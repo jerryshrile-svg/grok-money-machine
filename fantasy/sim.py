@@ -349,6 +349,43 @@ def keeper_sensitivity(board, league, n=300, seed=13):
     print("so the board gets thinner but the picks come back to you sooner.")
 
 
+def draft_plan(board, league, n=400, seed=17):
+    """What the winning rule actually does, pick by pick.
+
+    Runs the wait-cost rule many times and reports what it took at each of your
+    picks. Read it as a prior, not a script: the whole point of the rule is that
+    it reacts to what falls. The position mix is the durable part.
+    """
+    rng = random.Random(seed)
+    picks = snake_picks(league["my_draft_slot"], league["teams"], league["rounds"])
+    keeper_picks = {
+        k["pick_overall"] for k in league.get("keepers", []) if k.get("pick_overall")
+    }
+    real_picks = [p for p in picks if p not in keeper_picks]
+
+    by_pick_pos = defaultdict(lambda: defaultdict(int))
+    by_pick_player = defaultdict(lambda: defaultdict(int))
+
+    for _ in range(n):
+        roster = run_draft(board, league, ["WAIT"] * league["rounds"], rng)
+        taken = [p for p in roster if p.name not in
+                 {k["player"] for k in league.get("keepers", [])}]
+        for pick_no, player in zip(real_picks, taken):
+            by_pick_pos[pick_no][norm_pos(player.pos)] += 1
+            by_pick_player[pick_no][player.name] += 1
+
+    print(f"Round-by-round plan over {n} simulated drafts\n")
+    print(f"{'PICK':>5} {'RD':>3}  {'POSITION MIX':<34} {'MOST LIKELY TARGETS':<44}")
+    print("-" * 90)
+    for pick_no in real_picks:
+        rnd = (pick_no - 1) // league["teams"] + 1
+        pos_counts = sorted(by_pick_pos[pick_no].items(), key=lambda kv: -kv[1])
+        mix = "  ".join(f"{p} {c / n:.0%}" for p, c in pos_counts[:4])
+        names = sorted(by_pick_player[pick_no].items(), key=lambda kv: -kv[1])[:3]
+        targets = ", ".join(f"{nm.split(' ', 1)[-1][:14]} {c/n:.0%}" for nm, c in names)
+        print(f"{pick_no:>5} {rnd:>3}  {mix:<34} {targets:<44}")
+
+
 if __name__ == "__main__":
     league = load_league()
     board = build_board(league, load_players())
@@ -356,6 +393,8 @@ if __name__ == "__main__":
     n = int(sys.argv[2]) if len(sys.argv) > 2 else None
     if mode == "avail":
         availability(board, league, n=n or 1500)
+    elif mode == "plan":
+        draft_plan(board, league, n=n or 400)
     elif mode == "keepers":
         keeper_sensitivity(board, league, n=n or 300)
     else:

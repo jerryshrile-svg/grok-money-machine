@@ -201,6 +201,33 @@ class OpponentModel(unittest.TestCase):
         self.assertEqual(t.pressure("RB"), 1)
         self.assertEqual(len(t.recent), 3)
 
+    def test_run_pressure_is_capped(self):
+        """Uncapped pressure compounds into a runaway run on one position."""
+        t = opponent.RunTracker(window=12)
+        for _ in range(12):
+            t.add("WR")
+        self.assertEqual(t.pressure("WR"), opponent.RUN_CAP)
+
+    def test_elite_players_do_not_survive_the_first_round(self):
+        """A top-three consensus player must not routinely last nine picks."""
+        board = make_board()
+        survived = 0
+        trials = 60
+        best = min(board, key=lambda p: p.adp)
+        for t in range(trials):
+            rng = random.Random(t)
+            pool = [p for p in board if p.name != "Keeper Back"]
+            counts = defaultdict(lambda: defaultdict(int))
+            runs = opponent.RunTracker()
+            for slot in range(1, 10):
+                pick = opponent.choose(pool, counts[slot], 1, LEAGUE, rng, runs)
+                counts[slot][opponent.norm_pos(pick.pos)] += 1
+                runs.add(pick.pos)
+                pool.remove(pick)
+            if best in pool:
+                survived += 1
+        self.assertLess(survived / trials, 0.25, f"{best.name} survived too often")
+
     def test_flex_need_comes_from_surplus(self):
         need = opponent.starter_needs({"RB": 2, "WR": 2, "TE": 1, "QB": 1}, LEAGUE)
         self.assertEqual(need["FLEX"], 1)

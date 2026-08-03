@@ -10,6 +10,7 @@ Commands (fuzzy name matching, so "jeff" finds Justin Jefferson):
 
     <name>          someone else drafted this player
     me <name>       YOU drafted this player
+    why <name>      last season's usage and luck for this player
     undo            take back the last pick
     board / b       best available by value
     rb / wr / te / qb / k / def    best available at that position
@@ -56,6 +57,7 @@ class Draft:
         self.my_picks = snake_picks(league["my_draft_slot"], self.teams, self.rounds)
         self.picks: list[dict] = []  # [{pick, name, mine}]
         self.rng = random.Random(1234)
+        self._season = None  # 2025 context, loaded on first use (parses ~16 MB)
         self.keeper_names = {k["player"] for k in league.get("keepers", [])}
         self.keeper_picks = {
             k["pick_overall"] for k in league.get("keepers", []) if k.get("pick_overall")
@@ -143,6 +145,20 @@ class Draft:
             self.picks = json.load(fh).get("picks", [])
         return True
 
+    @property
+    def season(self):
+        if self._season is None:
+            from last_season import Season
+
+            print(f"{DIM}  (loading 2025 data...){OFF}")
+            self._season = Season(self.league["scoring"])
+        return self._season
+
+    def poe_of(self, player) -> float | None:
+        """Last season's points over expected per game, if the player has a 2025."""
+        d = self.season.get(player.name)
+        return d["poe_pg"] if d else None
+
     # ---------- analysis ----------
 
     def needs(self) -> dict[str, int]:
@@ -197,6 +213,9 @@ class Draft:
         return probs
 
     def recommend(self, top: int = 12):
+        self.season  # warm the cache before drawing, so the load notice can't
+        # land in the middle of the table
+
         cur = self.on_the_clock
         # The pick after this one — passing `cur` stops it returning `cur` itself
         # when you're the one on the clock.
@@ -250,23 +269,39 @@ class Draft:
             print(f"{RED}>> Take a {'K' if need.get('K') else 'DEF'} now — "
                   f"only {rounds_left} picks left and you still need {must}.{OFF}\n")
 
-        print(f"{'PLAYER':<24} {'POS':<5} {'TIER':>4} {'VORP':>7} {'SURVIVE':>8} {'WAIT COST':>10}")
-        print("-" * 62)
+        print(f"{'PLAYER':<24} {'POS':<5} {'TIER':>4} {'VORP':>7} {'SURVIVE':>8} "
+              f"{'WAIT COST':>10} {'LY':>6}")
+        print("-" * 69)
         for _, p, surv, cost in rows[:top]:
             flag = ""
             if horizon > 0 and surv < 0.35:
                 flag = f" {RED}<- gone if you wait{OFF}"
             elif horizon > 0 and surv > 0.80:
                 flag = f" {GRN}<- safe to wait{OFF}"
+
+            poe = self.poe_of(p)
+            if poe is None:
+                ly = f"{DIM}   new{OFF}"
+            elif poe > 1.5:
+                ly = f"{YEL}{poe:>+6.1f}{OFF}"   # rode 2025 luck, expect regression
+            elif poe < -1.5:
+                ly = f"{GRN}{poe:>+6.1f}{OFF}"   # unlucky 2025, positive regression
+            else:
+                ly = f"{poe:>+6.1f}"
+
             colour = CYA if need.get(_norm(p.pos), 0) > 0 else DIM
             print(
                 f"{colour}{p.name:<24}{OFF} {_norm(p.pos) + str(p.pos_rank):<5} "
-                f"{p.tier:>4} {p.vorp:>7.1f} {surv:>7.0%} {cost:>+10.1f}{flag}"
+                f"{p.tier:>4} {p.vorp:>7.1f} {surv:>7.0%} {cost:>+10.1f} {ly}{flag}"
             )
 
         print(f"\n{DIM}WAIT COST = this player's value minus the value you'd expect "
               f"to still get\n             at this position at pick {nxt}. "
-              f"Highest number is the pick.{OFF}")
+              f"Highest number is the pick.\n"
+              f"LY        = 2025 points over expected per game. "
+              f"{YEL}yellow{DIM} outran its usage\n"
+              f"             (regression risk), {GRN}green{DIM} underran it "
+              f"(bounce-back). 'why <name>' for detail.{OFF}")
         self.show_needs(inline=True)
 
     def show_board(self, pos: str | None = None, top: int = 20):
@@ -392,6 +427,11 @@ def main():
             continue
         if cmd in ("roster", "r"):
             d.show_roster()
+            continue
+        if cmd.startswith("why "):
+            from last_season import player_card
+
+            player_card(d.season, d.board, raw[4:])
             continue
         if cmd == "picks":
             left = [

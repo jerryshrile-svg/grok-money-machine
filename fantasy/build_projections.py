@@ -143,22 +143,30 @@ def load_consensus() -> list[dict]:
     return rows
 
 
-def positional_ranks(rows: list[dict], key: str) -> dict[int, int]:
-    """Rank within position by some ECR field. Returns row-index -> rank."""
+def positional_ranks(rows: list[dict]) -> dict[int, int]:
+    """Rank within position by consensus ECR. Returns row-index -> rank."""
     out: dict[int, int] = {}
     by_pos: dict[str, list[tuple[float, int]]] = defaultdict(list)
     for i, r in enumerate(rows):
-        raw = r.get(key) or r.get("ecr")
-        try:
-            val = float(raw)
-        except (TypeError, ValueError):
-            val = float(r["ecr"])
-        by_pos[r["pos"].upper()].append((val, i))
-    for pos, items in by_pos.items():
+        by_pos[r["pos"].upper()].append((float(r["ecr"]), i))
+    for items in by_pos.values():
         items.sort()
         for rank, (_, i) in enumerate(items, 1):
             out[i] = rank
     return out
+
+
+def rank_at_overall(ecrs_by_pos: dict[str, list[float]], pos: str, overall: float) -> int:
+    """If a player finished at this overall rank, what positional finish is that?
+
+    Counts how many players at the same position the consensus puts ahead of that
+    overall slot. Re-sorting the position by best-case rank would answer a
+    different and less useful question — it compares players to each other rather
+    than placing one player's own outcome on the board.
+    """
+    same = ecrs_by_pos.get(pos, [])
+    ahead = sum(1 for e in same if e < overall)
+    return max(1, ahead)
 
 
 def main() -> int:
@@ -176,9 +184,10 @@ def main() -> int:
     print()
 
     rows = load_consensus()
-    rank_ecr = positional_ranks(rows, "ecr")
-    rank_best = positional_ranks(rows, "best")
-    rank_worst = positional_ranks(rows, "worst")
+    rank_ecr = positional_ranks(rows)
+    ecrs_by_pos: dict[str, list[float]] = defaultdict(list)
+    for r in rows:
+        ecrs_by_pos[r["pos"].upper()].append(float(r["ecr"]))
 
     # Kickers and defenses get a flat nominal value; the engine zeroes their
     # VORP anyway, they just need to sort sanely for the last two rounds.
@@ -195,8 +204,10 @@ def main() -> int:
             if not c:
                 continue
             pts = at_rank(c, prank)
-            ceil = at_rank(c, rank_best[i])
-            floor = at_rank(c, rank_worst[i])
+            best = float(r["best"]) if r.get("best") else float(r["ecr"])
+            worst = float(r["worst"]) if r.get("worst") else float(r["ecr"])
+            ceil = at_rank(c, rank_at_overall(ecrs_by_pos, pos, best))
+            floor = at_rank(c, rank_at_overall(ecrs_by_pos, pos, worst))
 
         out_rows.append(
             {

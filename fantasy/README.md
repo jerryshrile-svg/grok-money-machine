@@ -16,6 +16,12 @@ python3 build_projections.py   # -> data/projections.csv in your scoring
 python3 engine.py              # value-based draft board + tiers + your picks
 python3 sim.py strat 2000      # compare draft strategies over 2000 drafts
 python3 sim.py avail 2000      # P(player available) at each of your picks
+
+python3 last_season.py             # 2025 usage + luck for the top of the board
+python3 last_season.py regression  # rode 2025 touchdown luck — fade list
+python3 last_season.py values      # unlucky in 2025 with real usage — buy list
+python3 last_season.py player bijan
+
 python3 draft_day.py           # live assistant — run this during the draft
 ```
 
@@ -49,14 +55,38 @@ Player ordering is the consensus's; the points scale is real NFL history in your
 scoring. That's what a value-based board needs — VORP and tiers depend on the
 *shape* of the curve, not on nailing any one player's total.
 
-**What it is not:** an independent opinion on players. It can't tell you the
-consensus is wrong about someone. It takes the market's read and converts it into
-your format — which is the whole edge, because your leaguemates are using that same
-consensus in a format it was never built for.
+**What it is not:** an independent opinion on players. It takes the market's read
+and converts it into your format — which is most of the edge, because your
+leaguemates are using that same consensus in a format it was never built for.
+
+For the part that *does* disagree with the consensus, see `last_season.py` below.
 
 Ceiling and floor come from the experts' own disagreement: each player's best- and
 worst-case rank run through the same curve. Tiers come from the same signal — while
 players' rank ranges overlap, the panel can't separate them and neither should you.
+
+## Last season, and where it disagrees with the consensus
+
+`last_season.py` is the one place the toolkit forms its own opinion.
+
+For every 2025 play, ffopportunity models what an average player would have gained
+given the situation — down, distance, air yards, field position — and converts that
+into expected receptions, yards and touchdowns. Compare it to what actually
+happened and you get **points over expected (POE)**:
+
+- **POE strongly positive** — output ran ahead of the opportunity behind it. Almost
+  always touchdown luck, and touchdown rate regresses hard year to year. If the
+  consensus is still paying for that season, you're buying noise.
+- **POE strongly negative** — real usage, unlucky finish. If the consensus faded
+  them for it, that's the cheapest edge on the board.
+
+Snap share and target share sit next to it, because POE only matters when the
+opportunity behind it is real. Justin Jefferson in 2025 is the clean example: 94%
+of snaps, a 30.7% target share, and **2 touchdowns against 8.6 expected** — a WR25
+finish built on a WR6 workload.
+
+Rookies and players who missed 2025 show as `new`; there is no usage history to
+read and the consensus rank is the only signal.
 
 ## Draft day
 
@@ -70,17 +100,21 @@ ranking, is the pick:
 ```
 Pick 11 (round 2) — next pick 22, 10 picks away
 
-PLAYER                   POS   TIER    VORP  SURVIVE  WAIT COST
---------------------------------------------------------------
-Justin Jefferson         WR6      2    51.1      0%      +26.0 <- gone if you wait
-Drake London             WR7      2    42.8      1%      +17.7 <- gone if you wait
-James Cook III           RB6      1    86.6     30%      +15.7 <- gone if you wait
+PLAYER                   POS   TIER    VORP  SURVIVE  WAIT COST     LY
+---------------------------------------------------------------------
+Justin Jefferson         WR6      2    51.1      0%      +26.0   -2.6 <- gone if you wait
+Drake London             WR7      2    42.8      1%      +17.7   +0.2 <- gone if you wait
+James Cook III           RB6      1    86.6     30%      +15.7   +3.4 <- gone if you wait
 ...
-Josh Allen               QB1      1    78.8     84%       +1.1 <- safe to wait
+Josh Allen               QB1      1    78.8     84%       +1.1   +3.0 <- safe to wait
 ```
 
 Josh Allen has the highest raw value on that board and is still the wrong pick — an
 8-team league won't take a QB in the next ten selections, so he keeps.
+
+The `LY` column is last season's POE per game, coloured yellow for regression risk
+and green for bounce-back. `why <name>` pulls a player's full 2025 card without
+leaving the draft.
 
 Names match fuzzily (`ja'marr`, `bijan`). State auto-saves to `draft_state.json`
 after every pick, so a closed terminal doesn't lose your draft; delete it to start
@@ -105,6 +139,7 @@ against when it is.
 | `build_projections.py` | Builds `data/projections.csv` in your scoring. |
 | `engine.py` | Replacement levels, VORP, tiering. |
 | `sim.py` | Monte Carlo: availability curves and strategy comparison. |
+| `last_season.py` | 2025 usage, luck, and regression flags vs the 2026 consensus. |
 | `draft_day.py` | Live draft assistant. |
 
 ## Before you draft

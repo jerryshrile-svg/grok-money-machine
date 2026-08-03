@@ -229,6 +229,17 @@ def build_board(league: dict, players: list[Player]) -> list[Player]:
     return board
 
 
+def slot_for_pick(overall: int, teams: int) -> int:
+    """Which draft slot owns a given overall pick, accounting for the snake.
+
+    Lets the live assistant rebuild every opponent's roster from the pick log,
+    so survival estimates know who already has a quarterback.
+    """
+    idx = (overall - 1) % teams
+    rnd = (overall - 1) // teams + 1
+    return idx + 1 if rnd % 2 == 1 else teams - idx
+
+
 def snake_picks(slot: int, teams: int, rounds: int) -> list[int]:
     """Overall pick numbers for a draft slot in a snake draft."""
     picks = []

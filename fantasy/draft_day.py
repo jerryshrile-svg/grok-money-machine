@@ -30,13 +30,19 @@ import random
 import sys
 from collections import defaultdict
 
-from engine import HERE, build_board, load_league, load_players, snake_picks
+from engine import (
+    HERE,
+    build_board,
+    load_league,
+    load_players,
+    slot_for_pick,
+    snake_picks,
+)
+from opponent import RunTracker, choose
 
 STATE_PATH = os.path.join(HERE, "draft_state.json")
 
-ADP_NOISE = 8.0
-POS_CAP = {"QB": 2, "TE": 2, "K": 1, "DEF": 1, "RB": 6, "WR": 7}
-SIM_TRIALS = 400
+SIM_TRIALS = 300
 
 BOLD, DIM, RED, GRN, YEL, CYA, OFF = (
     "\033[1m", "\033[2m", "\033[31m", "\033[32m", "\033[33m", "\033[36m", "\033[0m",
@@ -94,6 +100,20 @@ class Draft:
 
     def current_round(self) -> int:
         return (self.on_the_clock - 1) // self.teams + 1
+
+    @property
+    def runs(self) -> RunTracker:
+        """Recent picks by position, rebuilt from the log.
+
+        Derived rather than incrementally maintained so that undo, keeper
+        auto-advance, and resuming a saved draft can't leave it out of step.
+        """
+        tracker = RunTracker()
+        for entry in self.picks[-tracker.window:]:
+            player = self.by_name.get(entry["name"])
+            if player:
+                tracker.add(player.pos)
+        return tracker
 
     # ---------- mutation ----------
 
@@ -177,39 +197,63 @@ class Draft:
         need["FLEX"] = max(0, slots.get("FLEX", 0) - surplus)
         return need
 
-    def survival(self, horizon: int, trials: int = SIM_TRIALS) -> dict[str, float]:
-        """P(each player is still available after `horizon` opponent picks)."""
-        if horizon <= 0:
-            return {p.name: 1.0 for p in self.available}
+    def opponent_rosters(self) -> dict[int, dict[str, int]]:
+        """Rebuild every other team's roster from the pick log.
 
+        The snake tells us who owned each pick, so survival estimates can know
+        that the team picking next already has a quarterback and won't take one.
+        """
+        rosters: dict[int, dict[str, int]] = {
+            s: defaultdict(int) for s in range(1, self.teams + 1)
+        }
+        my_slot = self.league["my_draft_slot"]
+        for entry in self.picks:
+            slot = slot_for_pick(entry["pick"], self.teams)
+            if slot == my_slot:
+                continue
+            player = self.by_name.get(entry["name"])
+            if player:
+                rosters[slot][_norm(player.pos)] += 1
+        return rosters
+
+    def survival(self, horizon: int, trials: int = SIM_TRIALS) -> dict[str, float]:
+        """P(each player is still available after `horizon` opponent picks).
+
+        Runs the same need-aware opponent model the strategy simulator uses,
+        seeded with each team's actual roster so far.
+        """
         pool_all = self.available
-        # Only players near the top of ADP realistically come off the board.
-        contenders = sorted(pool_all, key=lambda p: p.adp)[: horizon * 4 + 30]
-        rnd = self.current_round()
-        late = rnd >= self.rounds - 1
+        if horizon <= 0:
+            return {p.name: 1.0 for p in pool_all}
+
+        # Only players near the top of the board realistically come off it.
+        contenders = sorted(pool_all, key=lambda p: p.adp)[: horizon * 5 + 40]
+        base_rosters = self.opponent_rosters()
+        start = self.on_the_clock
 
         survived = defaultdict(int)
-        adps = [(p.name, p.adp, _norm(p.pos)) for p in contenders]
-
         for _ in range(trials):
-            remaining = list(adps)
-            for _ in range(horizon):
-                best_i, best_s = None, float("inf")
-                for i, (_, adp, pos) in enumerate(remaining):
-                    if pos in ("K", "DEF") and not late:
-                        continue
-                    s = adp + self.rng.gauss(0, ADP_NOISE)
-                    if s < best_s:
-                        best_i, best_s = i, s
-                if best_i is None:
+            pool = list(contenders)
+            rosters = {s: dict(c) for s, c in base_rosters.items()}
+            runs = self.runs.copy()
+            for step in range(horizon):
+                overall = start + step
+                slot = slot_for_pick(overall, self.teams)
+                rnd = (overall - 1) // self.teams + 1
+                pick = choose(pool, rosters[slot], rnd, self.league, self.rng, runs)
+                if pick is None:
                     break
-                remaining.pop(best_i)
-            for name, _, _ in remaining:
-                survived[name] += 1
+                rosters[slot][_norm(pick.pos)] = (
+                    rosters[slot].get(_norm(pick.pos), 0) + 1
+                )
+                runs.add(pick.pos)
+                pool.remove(pick)
+            for p in pool:
+                survived[p.name] += 1
 
         probs = {p.name: 1.0 for p in pool_all}
-        for name, _, _ in adps:
-            probs[name] = survived[name] / trials
+        for p in contenders:
+            probs[p.name] = survived[p.name] / trials
         return probs
 
     def recommend(self, top: int = 12):
@@ -317,11 +361,28 @@ class Draft:
                 f"{p.points:>7.1f} {p.vorp:>7.1f} {p.adp:>6.1f}"
             )
 
+    def bye_load(self) -> dict[str, int]:
+        """How many of your players share each bye week."""
+        load: dict[str, int] = defaultdict(int)
+        for p in self.my_roster:
+            if p.bye and _norm(p.pos) not in ("K", "DEF"):
+                load[p.bye] += 1
+        return load
+
     def show_needs(self, inline: bool = False):
         need = self.needs()
         parts = [f"{k}×{v}" for k, v in need.items() if v > 0]
         label = "STILL NEED" if parts else "starters full — draft upside"
         print(f"\n{BOLD}{label}:{OFF} {' '.join(parts)}")
+
+        # With five bench spots you can absorb one crowded bye, not two.
+        heavy = sorted(
+            ((wk, n) for wk, n in self.bye_load().items() if n >= 3),
+            key=lambda kv: -kv[1],
+        )
+        if heavy:
+            weeks = ", ".join(f"week {wk} ({n} players)" for wk, n in heavy)
+            print(f"{YEL}BYE STACK:{OFF} {weeks}")
 
     def show_roster(self):
         roster = self.my_roster
@@ -456,6 +517,12 @@ def main():
             continue
         if mine and d.on_the_clock not in d.my_picks:
             print(f"{YEL}note: pick {d.on_the_clock} isn't one of yours{OFF}")
+        elif not mine and d.on_the_clock in d.my_picks:
+            # Forgetting "me" would drop the player from your roster tracking and
+            # quietly corrupt every needs and wait-cost number after it.
+            print(f"{YEL}note: pick {d.on_the_clock} IS yours — recording as "
+                  f"your pick. Use 'undo' if that's wrong.{OFF}")
+            mine = True
         d.record(player, mine)
         tag = f"{GRN}YOU{OFF}" if mine else "---"
         print(f"  {tag} pick {d.picks[-1]['pick']}: {player.name} "

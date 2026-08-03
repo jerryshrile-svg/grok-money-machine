@@ -16,6 +16,7 @@ python3 build_projections.py   # -> data/projections.csv in your scoring
 python3 engine.py              # value-based draft board + tiers + your picks
 python3 sim.py strat 2000      # compare draft strategies over 2000 drafts
 python3 sim.py avail 2000      # P(player available) at each of your picks
+python3 sim.py keepers         # how much the other teams' keepers move your board
 
 python3 last_season.py             # 2025 usage + luck for the top of the board
 python3 last_season.py regression  # rode 2025 touchdown luck — fade list
@@ -23,6 +24,8 @@ python3 last_season.py values      # unlucky in 2025 with real usage — buy lis
 python3 last_season.py player bijan
 
 python3 draft_day.py           # live assistant — run this during the draft
+
+python3 -m unittest test_toolkit   # 33 tests; run before draft day
 ```
 
 Re-run `fetch_data.py rankings && python3 build_projections.py` the morning of the
@@ -138,16 +141,19 @@ against when it is.
 | `fetch_data.py` | Downloads all free public data to `data/raw/`. |
 | `build_projections.py` | Builds `data/projections.csv` in your scoring. |
 | `engine.py` | Replacement levels, VORP, tiering. |
-| `sim.py` | Monte Carlo: availability curves and strategy comparison. |
+| `opponent.py` | How the other managers draft. Shared by the sim and the live tool. |
+| `sim.py` | Monte Carlo: availability, strategy comparison, keeper sensitivity. |
 | `last_season.py` | 2025 usage, luck, and regression flags vs the 2026 consensus. |
 | `draft_day.py` | Live draft assistant. |
+| `test_toolkit.py` | Invariants that would otherwise break silently mid-draft. |
 
 ## Before you draft
 
-1. **Put the other seven teams' keepers in `league.json`.** In a keeper league this
-   matters more than any projection tweak — kept players are off the board and every
-   consensus ranking is wrong until you account for them. The tools hold keepers out
-   of the pool for all teams, so availability and wait-cost math stay correct.
+1. **Put the other seven teams' keepers in `opponent_keepers.known` in
+   `league.json`.** In a keeper league this matters more than any projection tweak —
+   kept players are off the board and every consensus ranking is wrong until you
+   account for them. Until you know, set `unknown_count` and run
+   `python3 sim.py keepers` to see how far the board moves.
 2. Re-pull rankings the morning of the draft.
 3. Run `sim.py strat` to see which strategy your own numbers favor from pick 6.
 4. Run `sim.py avail` and note who is unlikely to survive each 10-pick gap.

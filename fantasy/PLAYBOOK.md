@@ -153,3 +153,51 @@ raw player talent with a weekend of code. The edge here is **format calibration,
 keeper-adjusted boards, draft-day discipline under a 90-second clock, and speed on
 waivers** — process advantages, which happen to be exactly the ones that compound
 over a season.
+
+## 5. Blind spots found and fixed
+
+Worth recording, because each was invisible until measured:
+
+**The opponent model hoarded quarterbacks and never drafted a kicker.** Simulated
+drafts took 15 QBs in a league that starts 8, and zero K/DEF — their consensus rank
+is ~200, so a skill player always looked better. In your real draft, sixteen picks
+in the last two rounds go to K/DEF. Fixing it meant giving opponents a concept of
+roster *needs* rather than just rankings, which also self-corrects the 12-team bias
+baked into consensus rankings. The effect on advice is large and directional: Trey
+McBride's odds of lasting from pick 11 to 22 went from 26% to 92%, turning a "reach
+now" into a "wait".
+
+**The live assistant had its own, worse copy of that model** — no roster needs at
+all. Both now run the same code in `opponent.py`, and it reconstructs each
+opponent's roster from the pick log, so it knows which teams already have a QB.
+
+**Drafters herd and the model didn't.** Independent draws never produce a run on
+tight ends. Recent picks at a position now pull that position forward for everyone.
+
+**Nothing modelled the other teams' keepers**, despite this document twice calling
+them the single biggest source of board error. `sim.py keepers` now shows the
+sensitivity directly.
+
+**There were no tests.** Every bug above was caught by squinting at output. There
+are now 33, covering snake math, keeper handling, lineup optimisation, roster
+legality and survival monotonicity.
+
+## 6. Known limits that remain
+
+**Consensus rank is standing in for ADP.** No free ADP source exists, and ECR is
+what experts think rather than what drafters do. The need-aware opponent model
+narrows the gap but cannot close it. If you run a mock draft on Yahoo, the pick
+order it produces is worth more than any of this — send it over and it can be
+fitted directly.
+
+**Opponents are modelled as one archetype.** Real leaguemates have tendencies: the
+one who always reaches for a quarterback, the homer who drafts his own team. Two or
+three years of your league's Yahoo draft history would replace the generic model
+with seven specific ones. That is still the highest-value unbuilt item.
+
+**Rank-to-points assumes the #N finisher scores like the #N finisher historically.**
+Fine for the shape of the curve, which is what VORP and tiers need. Not a
+prediction for any individual player.
+
+**In-season is untouched.** Waivers are where a shallow league is won, and none of
+that is built yet.

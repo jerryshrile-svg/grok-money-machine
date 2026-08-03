@@ -31,5 +31,21 @@
 
   "keepers": [
     { "team": "ME", "player": "Bijan Robinson", "round": 1, "pick_overall": 6 }
-  ]
+  ],
+
+  "//opponent_keepers": [
+    "The other teams' keepers are the largest single source of error in any",
+    "draft board, because no public ranking knows about them. Fill in `known`",
+    "with real names as you learn them — that is always better than modelling.",
+    "Until then, `unknown_count` says how many of the other seven teams you",
+    "expect to keep somebody, and the simulator removes that many players drawn",
+    "from the top `pool_top_n` of the board, consuming each of those teams'",
+    "round-`round` picks. Run `python3 sim.py keepers` to see how much it moves."
+  ],
+  "opponent_keepers": {
+    "known": [],
+    "unknown_count": 0,
+    "round": 1,
+    "pool_top_n": 36
+  }
 }

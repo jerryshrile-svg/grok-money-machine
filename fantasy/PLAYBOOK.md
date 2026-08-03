@@ -201,3 +201,55 @@ prediction for any individual player.
 
 **In-season is untouched.** Waivers are where a shallow league is won, and none of
 that is built yet.
+
+## 7. The answer: what to actually do
+
+Measured, not asserted. 400 simulated drafts from pick 6 with Bijan kept,
+scored on best legal starting lineup:
+
+```
+STRATEGY                   MEAN    FLOOR     CEIL   vs BEST
+Wait-cost (live tool)    1741.3   1706.5   1779.2      +0.0
+RB heavy                 1732.1   1700.7   1766.0      -9.2
+Zero RB                  1670.4   1642.6   1702.3     -70.8
+Elite QB early           1638.1   1619.5   1660.8    -103.2
+Hero RB -> WR wall       1637.4   1604.2   1674.7    -103.8
+Elite TE early           1622.0   1601.4   1644.6    -119.3
+BPA (pure value)         1547.4   1481.5   1673.8    -193.9
+```
+
+Two things to read out of that. The adaptive rule wins, but only by ~9 points
+over plain RB-heavy — a real edge, replicated across independent runs, and a
+small one. And **best-player-available finishes last**, with by far the widest
+spread: chasing raw value with no regard for lineup holes sometimes builds a
+great team and sometimes strands you starting a replacement-level tight end.
+
+### Why: tier depth
+
+| Position | Tier-1 players | Last tier-1 at consensus # |
+|---|---|---|
+| WR | 4 | #6 |
+| RB | 6 | #19 |
+| TE | 4 | #54 |
+| QB | 7 | #69 |
+
+All four elite receivers go inside the top six, so they are gone before pick 11
+every time. Tier-1 running back runs to #19, so one falls to you. Tier-1 tight
+end runs to #54 and tier-1 quarterback to #69 — those wait rounds, not picks.
+
+Replacement level is RB 179 and WR 177, nearly identical, but you start two
+backs plus a flex, and the consensus board is full-PPR while you play 0.5.
+
+### The shape it produces
+
+Bijan plus two more backs through pick 22, receivers from 27 to 54, quarterback
+in the 27-43 window, tight end around 70-75, kicker and defense with the last
+two picks. `python3 sim.py plan` regenerates the detail.
+
+On quarterbacks specifically: forcing one at pick 11 is among the worst things
+you can do, but the winning rule still takes Josh Allen at pick 27 about a third
+of the time, because by then the tier-1 backs are gone and his wait cost peaks.
+If he is gone, do not chase — tier-1 QB extends to #69.
+
+**None of this is a script.** Pick 11 goes receiver 29% of the time. If an elite
+one slides, take him; that is the rule working, not the plan failing.

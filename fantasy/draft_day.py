@@ -1,0 +1,430 @@
+"""Live draft assistant. Run this in a terminal next to your Yahoo draft window.
+
+You type each pick as it happens; it keeps the board, tracks your roster needs,
+and — the part that actually wins you picks — tells you how likely each target is
+to survive until your next pick, and what you lose by waiting.
+
+    python3 draft_day.py
+
+Commands (fuzzy name matching, so "jeff" finds Justin Jefferson):
+
+    <name>          someone else drafted this player
+    me <name>       YOU drafted this player
+    undo            take back the last pick
+    board / b       best available by value
+    rb / wr / te / qb / k / def    best available at that position
+    go / t          recommendation for your pick, with survival odds
+    roster / r      your roster and what you still need
+    picks           your remaining pick numbers
+    save / load     draft state persists to draft_state.json automatically
+    quit
+"""
+
+from __future__ import annotations
+
+import difflib
+import json
+import os
+import random
+import sys
+from collections import defaultdict
+
+from engine import HERE, build_board, load_league, load_players, snake_picks
+
+STATE_PATH = os.path.join(HERE, "draft_state.json")
+
+ADP_NOISE = 8.0
+POS_CAP = {"QB": 2, "TE": 2, "K": 1, "DEF": 1, "RB": 6, "WR": 7}
+SIM_TRIALS = 400
+
+BOLD, DIM, RED, GRN, YEL, CYA, OFF = (
+    "\033[1m", "\033[2m", "\033[31m", "\033[32m", "\033[33m", "\033[36m", "\033[0m",
+)
+
+
+def _norm(pos: str) -> str:
+    return "DEF" if pos in ("DST", "D/ST") else pos
+
+
+class Draft:
+    def __init__(self, league, board):
+        self.league = league
+        self.board = board
+        self.by_name = {p.name: p for p in board}
+        self.teams = league["teams"]
+        self.rounds = league["rounds"]
+        self.my_picks = snake_picks(league["my_draft_slot"], self.teams, self.rounds)
+        self.picks: list[dict] = []  # [{pick, name, mine}]
+        self.rng = random.Random(1234)
+        self.keeper_names = {k["player"] for k in league.get("keepers", [])}
+        self.keeper_picks = {
+            k["pick_overall"] for k in league.get("keepers", []) if k.get("pick_overall")
+        }
+
+    # ---------- state ----------
+
+    @property
+    def on_the_clock(self) -> int:
+        return len(self.picks) + 1
+
+    @property
+    def drafted(self) -> set[str]:
+        return {p["name"] for p in self.picks}
+
+    @property
+    def available(self) -> list:
+        # Keepers are unavailable to everyone from the first pick, not just once
+        # their slot comes up — otherwise the sim lets opponents draft them.
+        taken = self.drafted | self.keeper_names
+        return [p for p in self.board if p.name not in taken]
+
+    @property
+    def my_roster(self) -> list:
+        return [self.by_name[p["name"]] for p in self.picks if p["mine"]]
+
+    def next_pick(self, after: int | None = None) -> int | None:
+        """Your next pick where you actually choose — keeper slots don't count."""
+        after = after if after is not None else self.on_the_clock - 1
+        for p in self.my_picks:
+            if p > after and p not in self.keeper_picks:
+                return p
+        return None
+
+    def current_round(self) -> int:
+        return (self.on_the_clock - 1) // self.teams + 1
+
+    # ---------- mutation ----------
+
+    def record(self, player, mine: bool):
+        self.picks.append({"pick": self.on_the_clock, "name": player.name, "mine": mine})
+        self.auto_advance()
+        self.save()
+
+    def auto_advance(self):
+        """Drop in any keeper that occupies the pick now on the clock."""
+        changed = True
+        while changed:
+            changed = False
+            for k in self.league.get("keepers", []):
+                if k.get("pick_overall") != self.on_the_clock:
+                    continue
+                if k["player"] in self.drafted:
+                    continue
+                if k["player"] not in self.by_name:
+                    print(f"{YEL}! keeper '{k['player']}' not in projections{OFF}")
+                    continue
+                self.picks.append(
+                    {"pick": self.on_the_clock, "name": k["player"], "mine": k.get("team") == "ME"}
+                )
+                who = "YOU keep" if k.get("team") == "ME" else f"{k.get('team','?')} keeps"
+                print(f"{DIM}  [auto] pick {self.picks[-1]['pick']}: {who} {k['player']}{OFF}")
+                changed = True
+
+    def undo(self):
+        if not self.picks:
+            print("nothing to undo")
+            return
+        # Don't strand a keeper as the last entry — pop it too.
+        gone = self.picks.pop()
+        keeper_names = {k["player"] for k in self.league.get("keepers", [])}
+        while self.picks and self.picks[-1]["name"] in keeper_names:
+            self.picks.pop()
+        print(f"undid pick {gone['pick']}: {gone['name']}")
+        self.save()
+
+    def save(self):
+        with open(STATE_PATH, "w") as fh:
+            json.dump({"picks": self.picks}, fh, indent=2)
+
+    def load(self):
+        if not os.path.exists(STATE_PATH):
+            return False
+        with open(STATE_PATH) as fh:
+            self.picks = json.load(fh).get("picks", [])
+        return True
+
+    # ---------- analysis ----------
+
+    def needs(self) -> dict[str, int]:
+        """Remaining dedicated starter slots, flex counted separately."""
+        slots = self.league["roster"]
+        have = defaultdict(int)
+        for p in self.my_roster:
+            have[_norm(p.pos)] += 1
+        need = {}
+        for pos in ("QB", "RB", "WR", "TE", "K", "DEF"):
+            need[pos] = max(0, slots.get(pos, 0) - have[pos])
+        flex_ok = set(self.league.get("flex_eligible", ["RB", "WR", "TE"]))
+        surplus = sum(
+            max(0, have[p] - slots.get(p, 0)) for p in flex_ok
+        )
+        need["FLEX"] = max(0, slots.get("FLEX", 0) - surplus)
+        return need
+
+    def survival(self, horizon: int, trials: int = SIM_TRIALS) -> dict[str, float]:
+        """P(each player is still available after `horizon` opponent picks)."""
+        if horizon <= 0:
+            return {p.name: 1.0 for p in self.available}
+
+        pool_all = self.available
+        # Only players near the top of ADP realistically come off the board.
+        contenders = sorted(pool_all, key=lambda p: p.adp)[: horizon * 4 + 30]
+        rnd = self.current_round()
+        late = rnd >= self.rounds - 1
+
+        survived = defaultdict(int)
+        adps = [(p.name, p.adp, _norm(p.pos)) for p in contenders]
+
+        for _ in range(trials):
+            remaining = list(adps)
+            for _ in range(horizon):
+                best_i, best_s = None, float("inf")
+                for i, (_, adp, pos) in enumerate(remaining):
+                    if pos in ("K", "DEF") and not late:
+                        continue
+                    s = adp + self.rng.gauss(0, ADP_NOISE)
+                    if s < best_s:
+                        best_i, best_s = i, s
+                if best_i is None:
+                    break
+                remaining.pop(best_i)
+            for name, _, _ in remaining:
+                survived[name] += 1
+
+        probs = {p.name: 1.0 for p in pool_all}
+        for name, _, _ in adps:
+            probs[name] = survived[name] / trials
+        return probs
+
+    def recommend(self, top: int = 12):
+        cur = self.on_the_clock
+        # The pick after this one — passing `cur` stops it returning `cur` itself
+        # when you're the one on the clock.
+        nxt = self.next_pick(after=cur)
+        if nxt is None:
+            horizon = 0
+            print(f"{BOLD}Pick {cur} — your last pick{OFF}\n")
+        else:
+            horizon = nxt - cur - 1
+            print(
+                f"{BOLD}Pick {cur} (round {self.current_round()}){OFF} — "
+                f"next pick {nxt}, {horizon} picks away\n"
+            )
+
+        probs = self.survival(horizon)
+        avail = self.available
+        need = self.needs()
+
+        # Expected best VORP still available at each position next time around.
+        exp_next = {}
+        for pos in ("QB", "RB", "WR", "TE"):
+            pool = sorted(
+                (p for p in avail if _norm(p.pos) == pos), key=lambda x: -x.vorp
+            )
+            ev, carry = 0.0, 1.0
+            for p in pool[:25]:
+                s = probs.get(p.name, 1.0)
+                ev += carry * s * p.vorp
+                carry *= 1 - s
+                if carry < 0.001:
+                    break
+            exp_next[pos] = ev
+
+        rows = []
+        for p in avail:
+            pos = _norm(p.pos)
+            if pos in ("K", "DEF"):
+                continue
+            # What you give up by waiting on this position until your next pick.
+            cost_to_wait = p.vorp - exp_next.get(pos, 0.0)
+            # Discount positions where you have no starting slot left.
+            starter_slot = need.get(pos, 0) > 0 or need.get("FLEX", 0) > 0
+            weight = 1.0 if starter_slot else 0.35
+            rows.append((cost_to_wait * weight, p, probs.get(p.name, 1.0), cost_to_wait))
+
+        rows.sort(key=lambda r: -r[0])
+
+        rounds_left = self.rounds - self.current_round() + 1
+        must = need.get("K", 0) + need.get("DEF", 0)
+        if rounds_left <= must:
+            print(f"{RED}>> Take a {'K' if need.get('K') else 'DEF'} now — "
+                  f"only {rounds_left} picks left and you still need {must}.{OFF}\n")
+
+        print(f"{'PLAYER':<24} {'POS':<5} {'TIER':>4} {'VORP':>7} {'SURVIVE':>8} {'WAIT COST':>10}")
+        print("-" * 62)
+        for _, p, surv, cost in rows[:top]:
+            flag = ""
+            if horizon > 0 and surv < 0.35:
+                flag = f" {RED}<- gone if you wait{OFF}"
+            elif horizon > 0 and surv > 0.80:
+                flag = f" {GRN}<- safe to wait{OFF}"
+            colour = CYA if need.get(_norm(p.pos), 0) > 0 else DIM
+            print(
+                f"{colour}{p.name:<24}{OFF} {_norm(p.pos) + str(p.pos_rank):<5} "
+                f"{p.tier:>4} {p.vorp:>7.1f} {surv:>7.0%} {cost:>+10.1f}{flag}"
+            )
+
+        print(f"\n{DIM}WAIT COST = this player's value minus the value you'd expect "
+              f"to still get\n             at this position at pick {nxt}. "
+              f"Highest number is the pick.{OFF}")
+        self.show_needs(inline=True)
+
+    def show_board(self, pos: str | None = None, top: int = 20):
+        avail = self.available
+        if pos:
+            avail = [p for p in avail if _norm(p.pos) == pos]
+        avail = sorted(avail, key=lambda p: -p.vorp)[:top]
+        print(f"{'PLAYER':<24} {'POS':<5} {'TIER':>4} {'PTS':>7} {'VORP':>7} {'ADP':>6}")
+        print("-" * 56)
+        for p in avail:
+            print(
+                f"{p.name:<24} {_norm(p.pos) + str(p.pos_rank):<5} {p.tier:>4} "
+                f"{p.points:>7.1f} {p.vorp:>7.1f} {p.adp:>6.1f}"
+            )
+
+    def show_needs(self, inline: bool = False):
+        need = self.needs()
+        parts = [f"{k}×{v}" for k, v in need.items() if v > 0]
+        label = "STILL NEED" if parts else "starters full — draft upside"
+        print(f"\n{BOLD}{label}:{OFF} {' '.join(parts)}")
+
+    def show_roster(self):
+        roster = self.my_roster
+        if not roster:
+            print("(empty)")
+        else:
+            print(f"{'PLAYER':<24} {'POS':<5} {'PTS':>7} {'VORP':>7}")
+            print("-" * 46)
+            for p in sorted(roster, key=lambda x: (_norm(x.pos), -x.points)):
+                print(f"{p.name:<24} {_norm(p.pos) + str(p.pos_rank):<5} {p.points:>7.1f} {p.vorp:>7.1f}")
+        self.show_needs()
+
+    # ---------- name matching ----------
+
+    def find(self, query: str):
+        q = query.strip().lower()
+        if not q:
+            return None
+        avail = self.available
+        exact = [p for p in avail if p.name.lower() == q]
+        if exact:
+            return exact[0]
+        subs = [p for p in avail if q in p.name.lower()]
+        if len(subs) == 1:
+            return subs[0]
+        if len(subs) > 1:
+            return self._disambiguate(subs, query)
+        # Last-name / fuzzy fallback.
+        names = {p.name.lower(): p for p in avail}
+        close = difflib.get_close_matches(q, list(names), n=5, cutoff=0.6)
+        if len(close) == 1:
+            return names[close[0]]
+        if close:
+            return self._disambiguate([names[c] for c in close], query)
+
+        taken = [p for p in self.board if p.name.lower().find(q) >= 0]
+        if taken:
+            print(f"{YEL}'{query}' is already off the board{OFF}")
+        else:
+            print(f"{YEL}no match for '{query}'{OFF}")
+        return None
+
+    def _disambiguate(self, cands, query):
+        cands = sorted(cands, key=lambda p: p.adp)[:8]
+        print(f"'{query}' matches several:")
+        for i, p in enumerate(cands, 1):
+            print(f"  {i}. {p.name} ({_norm(p.pos)}, {p.team}, ADP {p.adp:.0f})")
+        try:
+            choice = input("which? [number, blank to cancel] ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return None
+        if choice.isdigit() and 1 <= int(choice) <= len(cands):
+            return cands[int(choice) - 1]
+        return None
+
+
+def main():
+    league = load_league()
+    board = build_board(league, load_players())
+    d = Draft(league, board)
+
+    if d.load() and d.picks:
+        print(f"{DIM}resumed {len(d.picks)} picks from draft_state.json "
+              f"(delete it to start fresh){OFF}")
+    d.auto_advance()
+
+    print(f"\n{BOLD}Draft assistant{OFF} — {d.teams} teams, slot "
+          f"{league['my_draft_slot']}, {d.rounds} rounds")
+    print(f"your picks: {', '.join(str(p) for p in d.my_picks)}")
+    print(f"{DIM}type a name to mark it drafted, 'me <name>' for your pick, "
+          f"'go' for advice, '?' for help{OFF}\n")
+
+    pos_cmds = {"rb": "RB", "wr": "WR", "te": "TE", "qb": "QB", "k": "K", "def": "DEF"}
+
+    while True:
+        mine_next = d.on_the_clock in d.my_picks
+        marker = f"{GRN}YOUR PICK{OFF}" if mine_next else "pick"
+        try:
+            raw = input(f"[{marker} {d.on_the_clock}] > ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not raw:
+            continue
+
+        cmd = raw.lower()
+        if cmd in ("quit", "q", "exit"):
+            break
+        if cmd in ("?", "help", "h"):
+            print(__doc__)
+            continue
+        if cmd == "undo":
+            d.undo()
+            continue
+        if cmd in ("board", "b"):
+            d.show_board()
+            continue
+        if cmd in pos_cmds:
+            d.show_board(pos_cmds[cmd])
+            continue
+        if cmd in ("go", "t", "targets", "rec"):
+            d.recommend()
+            continue
+        if cmd in ("roster", "r"):
+            d.show_roster()
+            continue
+        if cmd == "picks":
+            left = [
+                f"{p}{' (keeper)' if p in d.keeper_picks else ''}"
+                for p in d.my_picks
+                if p >= d.on_the_clock
+            ]
+            print("remaining:", ", ".join(left) or "none")
+            continue
+        if cmd == "save":
+            d.save()
+            print(f"saved to {STATE_PATH}")
+            continue
+
+        mine = False
+        if cmd.startswith("me ") or raw.startswith("+"):
+            mine = True
+            raw = raw[3:] if cmd.startswith("me ") else raw[1:]
+
+        player = d.find(raw)
+        if player is None:
+            continue
+        if mine and d.on_the_clock not in d.my_picks:
+            print(f"{YEL}note: pick {d.on_the_clock} isn't one of yours{OFF}")
+        d.record(player, mine)
+        tag = f"{GRN}YOU{OFF}" if mine else "---"
+        print(f"  {tag} pick {d.picks[-1]['pick']}: {player.name} "
+              f"({_norm(player.pos)}, VORP {player.vorp:.1f})")
+
+        if d.on_the_clock in d.my_picks:
+            print(f"\n{BOLD}{GRN}>>> You're on the clock.{OFF}")
+            d.recommend(top=10)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

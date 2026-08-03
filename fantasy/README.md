@@ -32,6 +32,28 @@ Re-run `fetch_data.py rankings && python3 build_projections.py` the morning of t
 draft. The rankings source updates weekly, so a fresh pull costs 5 seconds and
 catches every camp injury and depth-chart move the consensus has priced in.
 
+## Draft day setup (do this the morning of)
+
+On your own machine, not in a chat session. Needs Python 3 and nothing else.
+
+```bash
+git clone -b claude/fantasy-football-draft-co0mnh <this repo> ff && cd ff/fantasy
+
+python3 fetch_data.py            # ~37 MB, one minute
+python3 build_projections.py     # rebuilds the board on today's consensus
+python3 -m unittest test_toolkit  # 36 tests, ~1 second — confirms nothing rotted
+
+python3 draft_day.py             # leave this open beside the Yahoo draft window
+```
+
+Verified working from a clean clone. If `fetch_data.py` can't reach GitHub, the
+committed `data/projections.csv` still drives the board — you lose only the LY
+column, and the assistant says so rather than failing.
+
+Do one practice run before the real thing: start it, type ten names, hit `go`,
+then delete `draft_state.json`. Two minutes, and the commands stop being
+something you think about while the clock runs.
+
 ## Where the data comes from
 
 All free, all public, no accounts and no scraping — both projects publish plain

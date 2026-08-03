@@ -167,16 +167,30 @@ class Draft:
 
     @property
     def season(self):
-        if self._season is None:
-            from last_season import Season
+        """2025 context, or None if the raw data isn't downloaded.
 
-            print(f"{DIM}  (loading 2025 data...){OFF}")
-            self._season = Season(self.league["scoring"])
-        return self._season
+        Deliberately fail-soft. This is a supporting column; the draft cannot
+        stop because an optional file is missing while the clock is running.
+        """
+        if self._season is None:
+            try:
+                from last_season import Season
+
+                print(f"{DIM}  (loading 2025 data...){OFF}")
+                self._season = Season(self.league["scoring"])
+            except (OSError, ImportError) as exc:
+                print(f"{YEL}  2025 context unavailable ({exc.__class__.__name__}); "
+                      f"run 'python3 fetch_data.py' for the LY column. "
+                      f"Everything else works.{OFF}")
+                self._season = False
+        return self._season or None
 
     def poe_of(self, player) -> float | None:
         """Last season's points over expected per game, if the player has a 2025."""
-        d = self.season.get(player.name)
+        season = self.season
+        if season is None:
+            return None
+        d = season.get(player.name)
         return d["poe_pg"] if d else None
 
     # ---------- analysis ----------
@@ -325,7 +339,7 @@ class Draft:
 
             poe = self.poe_of(p)
             if poe is None:
-                ly = f"{DIM}   new{OFF}"
+                ly = f"{DIM}     -{OFF}" if self.season is None else f"{DIM}   new{OFF}"
             elif poe > 1.5:
                 ly = f"{YEL}{poe:>+6.1f}{OFF}"   # rode 2025 luck, expect regression
             elif poe < -1.5:
@@ -490,6 +504,9 @@ def main():
             d.show_roster()
             continue
         if cmd.startswith("why "):
+            if d.season is None:
+                print(f"{YEL}needs 2025 data — run 'python3 fetch_data.py'{OFF}")
+                continue
             from last_season import player_card
 
             player_card(d.season, d.board, raw[4:])

@@ -346,6 +346,21 @@ class LiveAssistant(unittest.TestCase):
         long = self.d.survival(horizon=12, trials=60)[best]
         self.assertGreaterEqual(short, long)
 
+    def test_missing_season_data_does_not_break_recommendations(self):
+        """The 2025 column is optional; a missing file must not stop the draft."""
+        import last_season
+
+        original = last_season.RAW
+        last_season.RAW = "/nonexistent/path"
+        try:
+            d = draft_day.Draft(LEAGUE, self.board)
+            d._season = None
+            self.assertIsNone(d.season)
+            self.assertIsNone(d.poe_of(self.board[0]))
+            d.recommend(top=3)  # must not raise
+        finally:
+            last_season.RAW = original
+
     def test_needs_start_at_full_lineup_minus_keeper(self):
         need = self.d.needs()
         self.assertEqual(need["QB"], 1)

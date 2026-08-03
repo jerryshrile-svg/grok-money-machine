@@ -23,9 +23,10 @@ python3 last_season.py regression  # rode 2025 touchdown luck — fade list
 python3 last_season.py values      # unlucky in 2025 with real usage — buy list
 python3 last_season.py player bijan
 
+python3 cheatsheet.py          # -> cheatsheet.html, printable draft-day sheet
 python3 draft_day.py           # live assistant — run this during the draft
 
-python3 -m unittest test_toolkit   # 33 tests; run before draft day
+python3 -m unittest test_toolkit   # 36 tests; run before draft day
 ```
 
 Re-run `fetch_data.py rankings && python3 build_projections.py` the morning of the
@@ -49,6 +50,11 @@ python3 draft_day.py             # leave this open beside the Yahoo draft window
 Verified working from a clean clone. If `fetch_data.py` can't reach GitHub, the
 committed `data/projections.csv` still drives the board — you lose only the LY
 column, and the assistant says so rather than failing.
+
+Then `python3 cheatsheet.py` and print `cheatsheet.html` — tiered boards, your
+pick numbers, the round plan and the endgame rules on one page. It is generated
+from the same board the assistant uses, so it can never disagree with what `go`
+tells you; regenerate it any time you re-pull the rankings.
 
 Do one practice run before the real thing: start it, type ten names, hit `go`,
 then delete `draft_state.json`. Two minutes, and the commands stop being
@@ -166,6 +172,7 @@ against when it is.
 | `opponent.py` | How the other managers draft. Shared by the sim and the live tool. |
 | `sim.py` | Monte Carlo: availability, strategy comparison, keeper sensitivity. |
 | `last_season.py` | 2025 usage, luck, and regression flags vs the 2026 consensus. |
+| `cheatsheet.py` | Builds the printable one-page cheat sheet from the live board. |
 | `draft_day.py` | Live draft assistant. |
 | `test_toolkit.py` | Invariants that would otherwise break silently mid-draft. |
 

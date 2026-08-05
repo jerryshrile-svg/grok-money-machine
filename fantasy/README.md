@@ -29,7 +29,8 @@ python3 last_season.py player bijan
 python3 cheatsheet.py          # -> cheatsheet.html, printable draft-day sheet
 python3 draft_day.py           # live assistant — run this during the draft
 
-python3 -m unittest test_toolkit   # 36 tests; run before draft day
+python3 backtest.py            # replay five real seasons; validates the rule
+python3 -m unittest test_toolkit   # 47 tests; run before draft day
 ```
 
 Re-run `fetch_data.py rankings && python3 build_projections.py` the morning of the
@@ -179,6 +180,7 @@ against when it is.
 | `playoffs.py` | Weeks 15-17 schedule difficulty — a tiebreaker between close players. |
 | `cheatsheet.py` | Builds the printable one-page cheat sheet from the live board. |
 | `draft_day.py` | Live draft assistant. |
+| `backtest.py` | Replays 2021-2025 with no lookahead and scores on real results. |
 | `test_toolkit.py` | Invariants that would otherwise break silently mid-draft. |
 
 ## Before you draft

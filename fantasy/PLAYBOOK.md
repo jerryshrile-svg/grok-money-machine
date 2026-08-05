@@ -316,3 +316,52 @@ and the picks burned are middle-round, so nothing comes back to you.
 **There is an IR slot.** That reverses part of the advice above: a player who
 opens the season on IR or PUP is a free stash, since he does not occupy a bench
 spot. One of your last two or three picks should be exactly that.
+
+---
+
+## 9. The backtest: what actually held up
+
+Five real seasons replayed with only what was knowable each August, scored on
+what those players actually did week by week. `backtest.py`. Numbers are points
+above simply drafting the consensus list, which is what the rest of your league
+does.
+
+```
+STRATEGY                     MEAN     BEST    WORST   WINS
+Wait-cost (live tool)         +44     +144      -44    4/5
+Zero RB                       +10     +104     -118    4/5
+Consensus list                 +0       +0       +0    0/5
+RB heavy                      -26      +28     -101    1/5
+BPA (my board)               -133      -15     -191    0/5
+```
+
+**The live tool's rule survives contact with reality.** That is the one claim in
+this repository that has been tested rather than asserted.
+
+**Two things did not survive.**
+
+*Rigid RB-heavy is worse than drafting the list* — minus 26 a season, one winning
+season in five. Earlier drafts of this playbook claimed following an RB-heavy
+shape would capture most of the edge. It does not. The adaptation is the edge.
+
+*Chasing raw value on this board is much worse than drafting the list* — minus
+133, losing all five seasons. The diagnosis is positional: best-available on this
+board spends 64% of its first six picks on tight ends and quarterbacks and takes
+a quarterback in round 2.8, because last-starter baselines make QB9 and TE9 look
+like an enormous drop from the top. The wait-cost rule escapes this only because
+survival odds tell it quarterbacks last. So the board is a fair input to that
+rule and a poor ranking on its own — do not draft off the VORP column directly.
+
+**The obvious fix made things worse, which is why it was tested.** Re-baselining
+against the best player available on waivers all season (QB10, RB32, WR48, TE10)
+did rescue naive value-chasing, lifting it from -133 to -99 and RB-heavy from
+-26 to +15. But it cut the wait-cost rule from +44 to +24 and from four winning
+seasons to three, by inflating running back and receiver value so far that the
+rule could no longer take an elite quarterback or tight end when one fell. The
+capability is still in `engine.py` behind `replacement_depth`; it is deliberately
+not enabled.
+
+**The caution.** In 2025 — the most recent season and the one that most resembles
+the conditions you are drafting into — every strategy lost to the consensus list,
+the wait-cost rule by 44 points. A plus-44 average carries real variance, and
+five seasons is a small sample. Treat the rule as an edge, not a guarantee.

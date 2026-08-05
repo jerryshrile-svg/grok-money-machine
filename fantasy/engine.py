@@ -183,9 +183,18 @@ def replacement_levels(players: Iterable[Player], league: dict) -> dict[str, flo
             break
         cursor[best_pos] += 1
 
+    # Optional deeper baselines. "Last starter" is the textbook choice but it
+    # systematically overvalues positions with few starting slots: QB9 and TE9
+    # are strong players, so the gap from the top looks enormous, and a naive
+    # value-chaser ends up with a quarterback in round 3. Measuring against the
+    # best player who'll actually sit on waivers all season is the honest
+    # comparison, because that is your real fallback.
+    depth = league.get("replacement_depth") or {}
+
     levels: dict[str, float] = {}
     for pos, pool in by_pos.items():
-        idx = min(cursor.get(pos, 0), len(pool) - 1)
+        idx = depth.get(pos, cursor.get(pos, 0))
+        idx = min(idx, len(pool) - 1)
         levels[pos] = pool[idx].points if pool else 0.0
     return levels
 

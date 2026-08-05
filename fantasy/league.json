@@ -60,5 +60,12 @@
     16,
     17
   ],
-  "regular_season_last_week": 14
+  "regular_season_last_week": 14,
+  "//replacement_depth": [
+    "Optional: positional rank to use as the replacement baseline, overriding the",
+    "default last-starter choice. Deliberately NOT set. Backtesting five seasons",
+    "with waiver-depth baselines (QB10 RB32 WR48 TE10) rescued naive value-chasing",
+    "but made the wait-cost rule worse: +44 over the consensus list falling to +24,",
+    "and 4 winning seasons of 5 falling to 3. Left off on that evidence."
+  ]
 }

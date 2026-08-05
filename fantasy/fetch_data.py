@@ -45,6 +45,10 @@ SOURCES: dict[str, list[tuple[str, str]]] = {
             "expected_points_2025.csv",
         ),
     ],
+    "schedule": [
+        ("https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv",
+         "schedule_2026.csv"),
+    ],
     "context": [
         (f"{NFLVERSE}/injuries/injuries_2025.csv", "injuries_2025.csv"),
         (f"{NFLVERSE}/rosters/roster_2025.csv", "roster_2025.csv"),

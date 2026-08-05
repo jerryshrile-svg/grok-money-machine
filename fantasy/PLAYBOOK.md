@@ -253,3 +253,54 @@ If he is gone, do not chase — tier-1 QB extends to #69.
 
 **None of this is a script.** Pick 11 goes receiver 29% of the time. If an elite
 one slides, take him; that is the rule working, not the plan failing.
+
+---
+
+## 8. What the confirmed settings change
+
+**Six of eight teams make the playoffs.** Qualifying is close to automatic — you
+only have to avoid finishing in the bottom two. So the regular season's real job
+is **seeding**, not survival. If the top two seeds get byes, they win the title
+by taking two games instead of three, which roughly doubles their odds. Chasing
+the highest possible seed is worth more than any single draft pick.
+
+The second consequence is that the title is decided in three weeks, so **ceiling
+beats consistency**. A boom-bust roster that wins a shootout in week 16 is worth
+more than a steady one. Worth noting the wait-cost rule already wins on ceiling
+as well as on mean, so the recommendation does not change — but between two close
+players, take the one with the higher ceiling, not the safer floor.
+
+Third: **bye weeks matter much less than the tools imply.** Byes fall in the
+regular season, where you can absorb losses. The bye-stack warning in the live
+assistant is worth glancing at, not worth a pick.
+
+**Weeks 15-17 schedule is now a real tiebreaker** rather than trivia, because
+those are the only weeks that decide anything. `playoffs.py` ranks it. Use it to
+break ties between players you rate closely — never as a reason to reach.
+
+**Waivers are a continual rolling list, not FAAB.** That makes priority a
+depleting resource: every claim you win drops you to the bottom of the queue.
+Two rules follow.
+
+1. **Hoard priority.** Only burn a claim on a player who plausibly changes your
+   season — a back who just inherited a starting job, a receiver whose target
+   share just doubled. Everything else can wait until the player clears waivers
+   and becomes a free agent, which costs nothing.
+2. **The waiver-wire edge is about being right early, not being fast.** In a FAAB
+   league you outbid; here you cannot. What you can do is identify the player
+   whose usage moved *before* the points show up, and spend your one good claim
+   on him rather than on last week's box-score hero.
+
+Initial priority usually runs in reverse draft order, so drafting sixth of eight
+starts you around third — good position. Do not spend it in week 2.
+
+**A keeper costs the round the player was drafted in last year.** This is the
+single biggest structural fact about the league, because it means keepers are a
+surplus calculation and the most likely keepers are last year's late-round
+breakouts, not this year's best players. `keepers.py` ranks them. Seven opponent
+keepers cost you roughly 45 lineup points, because the talent leaves the board
+and the picks burned are middle-round, so nothing comes back to you.
+
+**There is an IR slot.** That reverses part of the advice above: a player who
+opens the season on IR or PUP is a free stash, since he does not occupy a bench
+spot. One of your last two or three picks should be exactly that.

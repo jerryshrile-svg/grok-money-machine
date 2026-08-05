@@ -367,6 +367,36 @@ class LiveAssistant(unittest.TestCase):
         self.assertEqual(need["RB"], 2)  # keeper not yet auto-advanced
 
 
+class PlayoffSchedule(unittest.TestCase):
+    """Only runs when the schedule has been fetched."""
+
+    def setUp(self):
+        import playoffs
+
+        self.playoffs = playoffs
+        if not os.path.exists(os.path.join(playoffs.RAW, "schedule_2026.csv")):
+            self.skipTest("run: python3 fetch_data.py schedule")
+        self.league = engine.load_league()
+        self.opponents = playoffs.playoff_opponents()
+
+    def test_every_team_has_three_playoff_week_opponents(self):
+        self.assertEqual(len(self.opponents), 32)
+        for tm, opps in self.opponents.items():
+            self.assertEqual(len(opps), 3, f"{tm}: {opps}")
+
+    def test_nobody_plays_themselves(self):
+        for tm, opps in self.opponents.items():
+            self.assertNotIn(tm, opps)
+
+    def test_difficulty_is_centred_on_the_league_average(self):
+        allowed = self.playoffs.points_allowed(self.league["scoring"])
+        avg = self.playoffs.league_average(allowed)
+        diff = self.playoffs.difficulty(allowed, avg, self.opponents)
+        for pos in self.playoffs.SKILL:
+            vals = [d[pos] for d in diff.values()]
+            self.assertAlmostEqual(sum(vals) / len(vals), 0.0, delta=0.6)
+
+
 class RealDataSmoke(unittest.TestCase):
     """Only runs when projections have been built."""
 

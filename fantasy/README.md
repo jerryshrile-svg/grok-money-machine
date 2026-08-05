@@ -31,6 +31,7 @@ python3 draft_day.py           # live assistant — run this during the draft
 
 python3 backtest.py            # replay five real seasons; validates the rule
 python3 validate.py            # does the regression signal actually predict?
+python3 season_value.py        # draft vs waiver wire: where the value actually is
 python3 -m unittest test_toolkit   # 47 tests; run before draft day
 ```
 
@@ -191,6 +192,7 @@ against when it is.
 | `draft_day.py` | Live draft assistant. |
 | `backtest.py` | Replays 2021-2025 with no lookahead and scores on real results. |
 | `validate.py` | Tests the points-over-expected claim against four seasons. |
+| `season_value.py` | Measures the waiver wire against the draft across five seasons. |
 | `test_toolkit.py` | Invariants that would otherwise break silently mid-draft. |
 
 ## Before you draft

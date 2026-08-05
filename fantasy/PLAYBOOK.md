@@ -365,3 +365,46 @@ not enabled.
 the conditions you are drafting into — every strategy lost to the consensus list,
 the wait-cost rule by 44 points. A plus-44 average carries real variance, and
 five seasons is a small sample. Treat the rule as an edge, not a guarantee.
+
+---
+
+## 9. Where the value actually is
+
+Measured, not assumed. Same drafted roster, replayed across five real seasons
+with and without in-season adds:
+
+```
+SEASON    DRAFT ONLY  WITH WAIVERS    GAIN   PERFECT  CEILING
+2021            1581          1595     +14      1890     +309
+2022            1630          1624      -6      1821     +191
+2023            1478          1512     +34      1855     +377
+2024            1601          1646     +44      1928     +327
+2025            1640          1640      -0      1870     +230
+mean                                   +17               +287
+```
+
+Three numbers matter.
+
+**The draft lever is +44 a season** — the gap between the wait-cost rule and
+drafting straight off the consensus list. That is real, it is validated, and the
+tooling to capture it is built.
+
+**Naive waiver management is worth +17** — less than the draft, and negative in
+two of five seasons. Chasing last month's points actively hurt in 2022 and did
+nothing in 2025. So "just churn the wire" is not a strategy.
+
+**The ceiling on the wire is +287** — six and a half times the entire draft
+lever. That is with hindsight and nobody achieves it, but the shape of the answer
+is unambiguous: the free agent pool in an 8-team league holds enormous value, and
+a manager reacting to trailing points captures about 6% of it.
+
+The gap between those last two numbers, roughly 270 points a season, is the
+addressable opportunity. It dwarfs everything left on draft day. And the reason
+naive churn fails is exactly the thing flagged at the very start of this
+playbook: **trailing points are the wrong signal**. Snap share, route
+participation, target share and expected points move first, and the data for all
+of them is already downloaded.
+
+So the priority after 15 August is not a better board. It is the waiver tool —
+and it has to be built on opportunity metrics, because the version built on
+points has now been measured and is barely worth running.

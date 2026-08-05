@@ -208,7 +208,8 @@ def opponent_keepers(pool, league, rng, count=None):
     return out
 
 
-def run_draft(board, league, strategy, rng, track_availability=None, keeper_count=None):
+def run_draft(board, league, strategy, rng, track_availability=None,
+              keeper_count=None, drafted_out=None):
     teams = league["teams"]
     rounds = league["rounds"]
     slot = league["my_draft_slot"]
@@ -223,6 +224,9 @@ def run_draft(board, league, strategy, rng, track_availability=None, keeper_coun
     opp_kept = opponent_keepers(pool, league, rng, keeper_count)
     for player in opp_kept.values():
         pool.remove(player)
+    if drafted_out is not None:
+        drafted_out.extend(mine)
+        drafted_out.extend(opp_kept.values())
 
     rosters = defaultdict(lambda: defaultdict(int))
     for p in mine:
@@ -263,6 +267,8 @@ def run_draft(board, league, strategy, rng, track_availability=None, keeper_coun
                 rosters[team_id][norm_pos(pick.pos)] += 1
             runs.add(pick.pos)
             pool.remove(pick)
+            if drafted_out is not None:
+                drafted_out.append(pick)
 
     return mine
 

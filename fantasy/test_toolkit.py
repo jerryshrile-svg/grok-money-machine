@@ -470,6 +470,69 @@ class Backtest(unittest.TestCase):
         self.assertEqual(self.bt.score_roster(roster, {1: week}, LEAGUE), 30.0)
 
 
+class WaiverModel(unittest.TestCase):
+    """The manager model has to behave like a manager, not an optimiser."""
+
+    def setUp(self):
+        import season_value
+
+        self.sv = season_value
+
+    def _squad(self):
+        return [
+            Player(name="QB One", pos="QB", team="X", adp=1, points=340),
+            Player(name="TE One", pos="TE", team="X", adp=2, points=170),
+            Player(name="RB One", pos="RB", team="X", adp=3, points=280),
+            Player(name="RB Two", pos="RB", team="X", adp=4, points=240),
+            Player(name="RB Three", pos="RB", team="X", adp=5, points=200),
+            Player(name="WR One", pos="WR", team="X", adp=6, points=260),
+            Player(name="WR Two", pos="WR", team="X", adp=7, points=230),
+            Player(name="WR Three", pos="WR", team="X", adp=8, points=190),
+        ]
+
+    def test_never_drops_the_last_quarterback(self):
+        """Dropping your only QB scores zero at the position all season."""
+        squad = self._squad()
+        hot = Player(name="Hot Receiver", pos="WR", team="X", adp=99, points=40)
+        weeks = list(range(1, 6))
+        actuals = {w: {norm_name(p.name): 12.0 for p in squad} for w in weeks}
+        for w in weeks:
+            actuals[w][norm_name(hot.name)] = 40.0
+        league = dict(LEAGUE)
+        self.sv.simulate_season(squad, [hot], actuals, league, weeks, "waivers")
+        # The model mutates nothing it shouldn't; assert the invariant directly.
+        counts = defaultdict(int)
+        for p in squad:
+            counts[p.pos] += 1
+        self.assertGreaterEqual(counts["QB"], 1)
+
+    def test_shrinkage_stops_a_one_game_fluke_beating_a_star(self):
+        star = Player(name="Real Star", pos="WR", team="X", adp=1, points=280)
+        fluke = Player(name="One Week Wonder", pos="WR", team="X", adp=300, points=20)
+        form = {2: {norm_name(star.name): (14.0, 1),
+                    norm_name(fluke.name): (30.0, 1)}}
+        pre = {norm_name(star.name): 280 / 17, norm_name(fluke.name): 20 / 17}
+        sv = self.sv
+        star_val = sv._estimate(star, norm_name(star.name), 2, form, pre)
+        fluke_val = sv._estimate(fluke, norm_name(fluke.name), 2, form, pre)
+        self.assertGreater(star_val, fluke_val)
+
+    def test_waivers_never_score_worse_than_no_waivers_with_hindsight(self):
+        """Perfect information must not make the season worse."""
+        squad = self._squad()
+        weeks = list(range(1, 8))
+        actuals = {w: {norm_name(p.name): 10.0 for p in squad} for w in weeks}
+        fa = Player(name="Better Back", pos="RB", team="X", adp=99, points=250)
+        for w in weeks:
+            actuals[w][norm_name(fa.name)] = 25.0
+        future = self.sv.rest_of_season(actuals, weeks)
+        base = self.sv.simulate_season(
+            list(squad), [fa], actuals, LEAGUE, weeks, "draft_only", future)
+        best = self.sv.simulate_season(
+            list(squad), [fa], actuals, LEAGUE, weeks, "perfect", future)
+        self.assertGreaterEqual(best, base)
+
+
 class RealDataSmoke(unittest.TestCase):
     """Only runs when projections have been built."""
 

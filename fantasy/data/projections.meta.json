@@ -2,7 +2,7 @@
   "scoring": {
     "pass_yd": 0.04,
     "pass_td": 4.0,
-    "pass_int": -2.0,
+    "pass_int": -1.0,
     "rush_yd": 0.1,
     "rush_td": 6.0,
     "rec": 0.5,

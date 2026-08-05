@@ -158,29 +158,40 @@ def opponent_keepers(pool, league, rng, count=None):
     cfg = league.get("opponent_keepers", {})
     teams = league["teams"]
     my_slot = league["my_draft_slot"]
-    keeper_round = cfg.get("round", 1)
     by_name = {p.name: p for p in pool}
 
     slots = [s for s in range(1, teams + 1) if s != my_slot]
     rng.shuffle(slots)
 
+    # A keeper costs the round that player went in last year, so the pick it
+    # burns varies per player. Ranking candidates by surplus reproduces the
+    # decision the other managers are actually making.
+    from keepers import candidates as keeper_candidates
+
+    ranked = [r for r in keeper_candidates(pool, league) if not r["mine"]]
+    by_player = {r["player"].name: r for r in ranked}
+
     chosen: list = []
     for name in cfg.get("known", []):
-        player = by_name.get(name) if isinstance(name, str) else None
-        if player:
-            chosen.append(player)
+        if isinstance(name, str) and name in by_name:
+            chosen.append(by_name[name])
 
     n = cfg.get("unknown_count", 0) if count is None else count
     n = min(n, len(slots) - len(chosen))
     if n > 0:
-        top = [p for p in sorted(pool, key=lambda x: x.adp)[: cfg.get("pool_top_n", 36)]
-               if p not in chosen]
-        chosen += rng.sample(top, min(n, len(top)))
+        # Sample from the top of the surplus list rather than taking it exactly:
+        # seven managers won't all identify the same seven best keepers, and one
+        # team may hold two of them and keep only one.
+        head = [r["player"] for r in ranked[: max(n * 2, cfg.get("pool_top_n", 14))]
+                if r["player"] not in chosen]
+        chosen += rng.sample(head, min(n, len(head)))
 
     out = {}
     for slot, player in zip(slots, chosen):
-        idx = slot - 1 if keeper_round % 2 == 1 else teams - slot
-        out[(keeper_round - 1) * teams + idx + 1] = player
+        rnd = by_player.get(player.name, {}).get("round", 1)
+        rnd = min(max(1, rnd), league["rounds"])
+        idx = slot - 1 if rnd % 2 == 1 else teams - slot
+        out[(rnd - 1) * teams + idx + 1] = player
     return out
 
 

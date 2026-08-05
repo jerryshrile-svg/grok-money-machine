@@ -278,6 +278,18 @@ assistant is worth glancing at, not worth a pick.
 those are the only weeks that decide anything. `playoffs.py` ranks it. Use it to
 break ties between players you rate closely — never as a reason to reach.
 
+Confirmed against the 2026 calendar: NFL week 17 ends Monday 4 January 2027,
+which matches the league's playoff end date, so the bracket is weeks 15-16-17
+and the fantasy regular season is weeks 1-14. Two things follow. **No team has a
+bye in weeks 15-17**, so bye weeks can only ever cost you seeding, never the
+title — one more reason not to spend a pick avoiding them. And week 18 is not
+used, which is the normal and correct choice: that is the week starters rest.
+
+The residual risk is that week 17 is now your championship, and a team that has
+already locked its seed can rest starters a week early. It is a smaller risk than
+week 18 would be, but it is not zero, and it slightly favours players on teams
+still fighting for position in late December.
+
 **Waivers are a continual rolling list, not FAAB.** That makes priority a
 depleting resource: every claim you win drops you to the bottom of the queue.
 Two rules follow.

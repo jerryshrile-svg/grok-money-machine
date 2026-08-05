@@ -377,12 +377,41 @@ class PlayoffSchedule(unittest.TestCase):
         if not os.path.exists(os.path.join(playoffs.RAW, "schedule_2026.csv")):
             self.skipTest("run: python3 fetch_data.py schedule")
         self.league = engine.load_league()
-        self.opponents = playoffs.playoff_opponents()
+        self.opponents = playoffs.playoff_opponents(self.league)
 
     def test_every_team_has_three_playoff_week_opponents(self):
         self.assertEqual(len(self.opponents), 32)
         for tm, opps in self.opponents.items():
             self.assertEqual(len(opps), 3, f"{tm}: {opps}")
+
+    def test_playoff_weeks_match_the_league_calendar(self):
+        """Week 17 must be the week that ends on the stated playoff end date."""
+        weeks = self.playoffs.playoff_weeks(self.league)
+        self.assertEqual(weeks, (15, 16, 17))
+        path = os.path.join(self.playoffs.RAW, "schedule_2026.csv")
+        import csv as _csv
+
+        last = max(
+            r["gameday"]
+            for r in _csv.DictReader(open(path))
+            if r["season"] == "2026" and int(r["week"]) == weeks[-1]
+        )
+        self.assertEqual(last, "2027-01-04")
+
+    def test_no_byes_during_the_playoffs(self):
+        """A bye in the championship week would be a silent disaster."""
+        import collections as _c
+        import csv as _csv
+
+        path = os.path.join(self.playoffs.RAW, "schedule_2026.csv")
+        playing = _c.defaultdict(set)
+        for r in _csv.DictReader(open(path)):
+            if r["season"] != "2026":
+                continue
+            playing[int(r["week"])].update([r["home_team"], r["away_team"]])
+        teams = set().union(*playing.values())
+        for wk in self.playoffs.playoff_weeks(self.league):
+            self.assertEqual(teams - playing[wk], set(), f"byes in week {wk}")
 
     def test_nobody_plays_themselves(self):
         for tm, opps in self.opponents.items():

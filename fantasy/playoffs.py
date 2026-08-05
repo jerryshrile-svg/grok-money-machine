@@ -32,7 +32,11 @@ from collections import defaultdict
 from engine import HERE, build_board, load_league, load_players
 
 RAW = os.path.join(HERE, "data", "raw")
-PLAYOFF_WEEKS = (15, 16, 17)
+
+# Confirmed against the 2026 calendar: NFL week 17 ends Monday 2027-01-04, which
+# is when this league's playoffs end. Read from config so a format change can't
+# leave this file silently analysing the wrong three weeks.
+DEFAULT_PLAYOFF_WEEKS = (15, 16, 17)
 SKILL = ("QB", "RB", "WR", "TE")
 
 STAT_MAP = {
@@ -96,15 +100,20 @@ def league_average(allowed) -> dict[str, float]:
     return avg
 
 
-def playoff_opponents() -> dict[str, list[str]]:
-    """Each team's weeks 15-17 opponents from the 2026 schedule."""
+def playoff_weeks(league: dict) -> tuple[int, ...]:
+    return tuple(league.get("playoff_weeks") or DEFAULT_PLAYOFF_WEEKS)
+
+
+def playoff_opponents(league: dict | None = None) -> dict[str, list[str]]:
+    """Each team's playoff-week opponents from the 2026 schedule."""
+    weeks = playoff_weeks(league or {})
     path = os.path.join(RAW, "schedule_2026.csv")
     if not os.path.exists(path):
         return {}
     out: dict[str, list[str]] = defaultdict(list)
     with open(path, newline="") as fh:
         for r in csv.DictReader(fh):
-            if r.get("season") != "2026" or int(_f(r, "week")) not in PLAYOFF_WEEKS:
+            if r.get("season") != "2026" or int(_f(r, "week")) not in weeks:
                 continue
             home, away = team(r.get("home_team")), team(r.get("away_team"))
             out[home].append(away)
@@ -125,7 +134,7 @@ def difficulty(allowed, avg, opponents) -> dict[str, dict[str, float]]:
 
 
 def show_teams(diff, opponents):
-    print("Weeks 15-17 schedule, points above league average conceded by the")
+    print("Playoff-week schedule, points above league average conceded by the")
     print("defenses your players face. Positive is easier.\n")
     print(f"{'TEAM':<6} {'OPPONENTS':<16} {'QB':>7} {'RB':>7} {'WR':>7} {'TE':>7}")
     print("-" * 56)
@@ -164,7 +173,7 @@ def show_board(board, diff, league, show=12):
 
 def main() -> int:
     league = load_league()
-    opponents = playoff_opponents()
+    opponents = playoff_opponents(league)
     if not opponents:
         print("missing data/raw/schedule_2026.csv — run: python3 fetch_data.py schedule")
         return 1

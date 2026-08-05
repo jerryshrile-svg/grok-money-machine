@@ -49,5 +49,16 @@
     "known": [],
     "unknown_count": 7,
     "pool_top_n": 14
-  }
+  },
+  "//schedule": [
+    "Fantasy regular season is weeks 1-14; the 6-team bracket runs 15-16-17 with",
+    "byes for the top two seeds. Week 17 ends Monday 2027-01-04, which matches the",
+    "league's stated playoff end date. NFL week 18 is not used."
+  ],
+  "playoff_weeks": [
+    15,
+    16,
+    17
+  ],
+  "regular_season_last_week": 14
 }

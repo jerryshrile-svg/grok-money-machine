@@ -1,0 +1,15 @@
+{
+  "scoring": {
+    "pass_yd": 0.04,
+    "pass_td": 4.0,
+    "pass_int": -2.0,
+    "rush_yd": 0.1,
+    "rush_td": 6.0,
+    "rec": 0.5,
+    "rec_yd": 0.1,
+    "rec_td": 6.0,
+    "fumble_lost": -2.0,
+    "two_pt": 2.0
+  },
+  "scrape_date": "2026-07-31"
+}

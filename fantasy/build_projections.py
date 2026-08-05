@@ -29,6 +29,7 @@ and worst-case rank across the panel, run through the same curve.
 from __future__ import annotations
 
 import csv
+import json
 import os
 from collections import defaultdict
 
@@ -36,6 +37,7 @@ from engine import HERE, load_league
 
 RAW = os.path.join(HERE, "data", "raw")
 OUT = os.path.join(HERE, "data", "projections.csv")
+META = os.path.join(HERE, "data", "projections.meta.json")
 
 SEASONS = (2023, 2024, 2025)
 SKILL = ("QB", "RB", "WR", "TE")
@@ -231,6 +233,13 @@ def main() -> int:
         w = csv.DictWriter(fh, fieldnames=list(out_rows[0].keys()))
         w.writeheader()
         w.writerows(out_rows)
+
+    # Record the scoring these points were built with. engine.py compares it to
+    # league.json and warns on a mismatch — otherwise editing scoring appears to
+    # do nothing, because the points column is precomputed here, not there.
+    with open(META, "w") as fh:
+        json.dump({"scoring": scoring, "scrape_date": rows[0].get("scrape_date", "")},
+                  fh, indent=2)
 
     scrape = rows[0].get("scrape_date", "?")
     counts: dict[str, int] = defaultdict(int)

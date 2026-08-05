@@ -388,6 +388,18 @@ class RealDataSmoke(unittest.TestCase):
         for k in self.league.get("keepers", []):
             self.assertIn(k["player"], names)
 
+    def test_scoring_matches_the_projections_on_disk(self):
+        """Editing scoring without rebuilding silently changes nothing."""
+        warning = engine.check_scoring(self.league)
+        self.assertIsNone(warning, warning)
+
+    def test_scoring_mismatch_is_detected(self):
+        import copy
+
+        bad = copy.deepcopy(self.league)
+        bad["scoring"]["pass_td"] = bad["scoring"]["pass_td"] + 2
+        self.assertIsNotNone(engine.check_scoring(bad))
+
     def test_every_position_has_a_replacement_level(self):
         levels = engine.replacement_levels(self.board, self.league)
         for pos in ("QB", "RB", "WR", "TE"):

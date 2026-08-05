@@ -13,6 +13,7 @@ import csv
 import json
 import math
 import os
+import sys
 from dataclasses import dataclass, field
 from typing import Iterable
 
@@ -112,6 +113,33 @@ def load_players(path: str | None = None) -> list[Player]:
     return players
 
 
+def check_scoring(league: dict, path: str | None = None) -> str | None:
+    """Warn when projections were built under different scoring rules.
+
+    The points column in projections.csv is precomputed by build_projections.py,
+    so engine.py never applies league.json's scoring to it. Editing scoring and
+    not rebuilding would silently change nothing.
+    """
+    path = path or os.path.join(HERE, "data", "projections.meta.json")
+    if not os.path.exists(path):
+        return None
+    with open(path) as fh:
+        built = json.load(fh).get("scoring", {})
+    current = league.get("scoring", {})
+    diffs = [
+        f"{k}: built {built.get(k)} vs league.json {current.get(k)}"
+        for k in set(built) | set(current)
+        if built.get(k) != current.get(k)
+    ]
+    if not diffs:
+        return None
+    return (
+        "scoring in league.json does not match the projections on disk:\n  "
+        + "\n  ".join(sorted(diffs))
+        + "\nrun: python3 build_projections.py"
+    )
+
+
 def score(player: Player, scoring: dict[str, float]) -> float:
     if player.points:  # explicit projection wins
         return player.points
@@ -209,6 +237,9 @@ def assign_tiers(players: list[Player], sensitivity: float = 1.0) -> None:
 
 
 def build_board(league: dict, players: list[Player]) -> list[Player]:
+    warning = check_scoring(league)
+    if warning:
+        print(f"\n!! {warning}\n", file=sys.stderr)
     scoring = league["scoring"]
     for p in players:
         p.points = score(p, scoring)

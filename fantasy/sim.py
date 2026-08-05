@@ -149,11 +149,12 @@ def opponent_keepers(pool, league, rng, count=None):
     """Take players off the board for opponents who keep somebody.
 
     Returns {overall_pick: player}. Each kept player consumes the keeping team's
-    pick in the configured round, exactly like your Bijan pick does.
+    pick in the round he was drafted last year, exactly like Bijan costs your
+    round-1 pick.
 
     Named keepers are used when you know them. `unknown_count` is the fallback:
-    it samples that many players from the top of the board, which is where
-    keepers actually come from — nobody protects their twelfth-round pick.
+    it samples that many from the top of the keeper-surplus ranking, which is the
+    decision the other managers are actually making.
     """
     cfg = league.get("opponent_keepers", {})
     teams = league["teams"]
@@ -355,9 +356,9 @@ def keeper_sensitivity(board, league, n=300, seed=13):
         common = max(firsts.items(), key=lambda kv: kv[1])[0] if firsts else "-"
         print(f"{count:>8} {mean:>11.1f} {mean - baseline:>+9.1f}   {common[:44]:<44}")
 
-    print("\nEach keeper removes a top-36 player and burns that team's round-"
-          f"{league.get('opponent_keepers', {}).get('round', 1)} pick,")
-    print("so the board gets thinner but the picks come back to you sooner.")
+    print("\nEach keeper takes a high-surplus player off the board and burns that")
+    print("team's pick in the round he was drafted last year — usually a middle or")
+    print("late one, so the talent goes without the early picks coming back to you.")
 
 
 def draft_plan(board, league, n=400, seed=17):

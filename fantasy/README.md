@@ -17,6 +17,7 @@ python3 engine.py              # value-based draft board + tiers + your picks
 python3 sim.py strat 2000      # compare draft strategies over 2000 drafts
 python3 sim.py avail 2000      # P(player available) at each of your picks
 python3 sim.py keepers         # how much the other teams' keepers move your board
+python3 keepers.py             # who the other teams are most likely to keep
 
 python3 last_season.py             # 2025 usage + luck for the top of the board
 python3 last_season.py regression  # rode 2025 touchdown luck — fade list
@@ -172,6 +173,7 @@ against when it is.
 | `opponent.py` | How the other managers draft. Shared by the sim and the live tool. |
 | `sim.py` | Monte Carlo: availability, strategy comparison, keeper sensitivity. |
 | `last_season.py` | 2025 usage, luck, and regression flags vs the 2026 consensus. |
+| `keepers.py` | Ranks who the other teams are likeliest to keep, by surplus. |
 | `cheatsheet.py` | Builds the printable one-page cheat sheet from the live board. |
 | `draft_day.py` | Live draft assistant. |
 | `test_toolkit.py` | Invariants that would otherwise break silently mid-draft. |

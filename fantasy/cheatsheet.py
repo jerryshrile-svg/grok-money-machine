@@ -17,6 +17,7 @@ import sys
 from datetime import date
 
 from engine import HERE, build_board, load_league, load_players, snake_picks
+from last_season import norm
 
 # How deep to print each position. Enough to cover every pick that matters,
 # short enough to stay a sheet rather than a book.
@@ -24,38 +25,47 @@ DEPTH = {"RB": 16, "WR": 16, "TE": 9, "QB": 9}
 
 # What the wait-cost rule does at each pick, from `sim.py plan`.
 PLAN = [
-    ("6", "1", "Bijan Robinson", "keeper"),
-    ("11", "2", "RB 71% · WR 29%", "McCaffrey, Taylor, Gibbs"),
-    ("22", "3", "RB 76% · WR 12% · TE 12%", "Hampton, Cook, Achane"),
-    ("27", "4", "WR 52% · QB 41%", "Allen, DeVonta Smith, Olave"),
-    ("38", "5", "WR 53% · QB 24% · TE 15%", "Maye, Wilson, Loveland"),
-    ("43", "6", "WR 38% · QB 31% · RB 30%", "Burrow, Daniels, Higgins"),
-    ("54", "7", "WR 54% · RB 26%", "Burden, Adams, Etienne"),
-    ("59", "8", "RB 87%", "Irving, Skattebo, Judkins"),
-    ("70", "9", "QB 36% · TE 32% · RB 30%", "Kraft, C. Williams, Tuten"),
-    ("75", "10", "RB 28% · QB 25% · TE 24%", "Pitts, Warren, Lawrence"),
-    ("86", "11", "RB 40% · WR 40%", "Stevenson, Pollard, LaPorta"),
-    ("91", "12", "RB 55% · WR 25%", "Harvey, Dowdle, Robinson"),
+    ("6", "1", "Bijan Robinson", "keeper, costs your R1"),
+    ("11", "2", "RB 80% · WR 19%", "Jeanty, Taylor, McCaffrey"),
+    ("22", "3", "RB 37% · QB 25% · WR 20% · TE 18%", "Allen, Achane, McBride"),
+    ("27", "4", "QB 51% · WR 42%", "Jackson, Maye, Flowers"),
+    ("38", "5", "WR 57% · RB 26% · QB 12%", "McMillan, Higgins, Wilson"),
+    ("43", "6", "WR 52% · RB 27% · QB 19%", "Daniels, Nabers, McConkey"),
+    ("54", "7", "WR 60% · RB 23% · QB 14%", "Adams, Burden, Skattebo"),
+    ("59", "8", "RB 86%", "Irving, Judkins, Skattebo"),
+    ("70", "9", "RB 42% · TE 29% · QB 28%", "Tuten, Fannin, Kraft"),
+    ("75", "10", "WR 47% · RB 26% · TE 17%", "Pierce, Pitts, Tuten"),
+    ("86", "11", "RB 47% · WR 34%", "Pollard, Stevenson, Hubbard"),
+    ("91", "12", "RB 41% · QB 21% · TE 19%", "Harvey, Dart — or an IR stash"),
     ("102", "13", "KICKER", "last two picks, never earlier"),
     ("107", "14", "DEFENSE", "stream both all season"),
 ]
 
+
 RULES = [
     ("Take the highest wait cost",
      "Not best available. Value now minus what you'd still get at that position "
-     "at your next pick."),
+     "at your next pick. Backtested at +44 points a season over drafting the list, "
+     "winning 4 of 5."),
+    ("Don't run a script",
+     "A rigid RB-heavy plan backtested at -26 and lost 4 of 5 seasons. The rule "
+     "wins because it reacts. React."),
+    ("Assume the K players are gone",
+     "Seven teams keep one each, and a keeper costs the round he went last year — "
+     "so last season's late breakouts vanish, not this season's best players."),
     ("All four elite WRs go by consensus #6",
-     "They will not reach pick 11. Don't plan around one falling — but take him "
-     "if he does."),
-    ("Tier-1 RB runs to #19",
-     "One reliably falls to you. This is why the board says backs early."),
+     "They will not reach pick 11. Take one if he slides, but don't plan on it."),
     ("Tier-1 QB runs to #69, tier-1 TE to #54",
-     "Both wait rounds, not picks. Forcing a QB at 11 is the worst move on the board."),
+     "Both wait rounds, not picks. Forcing either at pick 11 is the worst move "
+     "on the board."),
+    ("Fade the hot, only half-trust the cold",
+     "Hot players gave back 91% of the gap between what they scored and what "
+     "their usage earned. Cold ones recovered just 31%."),
     ("Kicker and defense are picks 102 and 107",
-     "Every round spent earlier is pure loss in an 8-team league."),
-    ("Bench is for upside, never handcuffs",
-     "112 players rostered means your starter's backup is usually still free."),
+     "Every round spent earlier is pure loss. One late pick is better spent on a "
+     "player who opens on IR — that stash costs you no bench spot."),
 ]
+
 
 
 def display_name(name: str) -> str:
@@ -68,6 +78,37 @@ def display_name(name: str) -> str:
         return name
     first, rest = name.split(" ", 1)
     return f"{first[0]}. {rest}"
+
+
+def likely_keepers(board, league, season):
+    """The players most likely off the board before the draft starts.
+
+    Seven other teams keep at most seven players, and a keeper costs the round
+    that player went in last year — so the ones that disappear are last season's
+    late-round breakouts, not this season's best players.
+    """
+    try:
+        from keepers import candidates
+    except ImportError:
+        return set()
+    played = set(season.rec) if season is not None else None
+    rows = [r for r in candidates(board, league, played) if not r["mine"]]
+    return {norm(r["player"].name) for r in rows[: league["teams"] - 1]}
+
+
+def playoff_difficulty(league):
+    """Points above average conceded by each team's weeks 15-17 opponents."""
+    try:
+        import playoffs
+
+        opponents = playoffs.playoff_opponents(league)
+        if not opponents:
+            return {}, playoffs
+        allowed = playoffs.points_allowed(league["scoring"])
+        avg = playoffs.league_average(allowed)
+        return playoffs.difficulty(allowed, avg, opponents), playoffs
+    except (ImportError, OSError):
+        return {}, None
 
 
 def poe_flag(season, name):
@@ -85,7 +126,7 @@ def poe_flag(season, name):
     return f"{v:+.1f}", ""
 
 
-def position_block(board, season, pos, depth):
+def position_block(board, season, pos, depth, kept, diff, pmod):
     pool = sorted((p for p in board if p.pos == pos), key=lambda x: -x.vorp)[:depth]
     rows, current_tier = [], None
     for p in pool:
@@ -96,12 +137,23 @@ def position_block(board, season, pos, depth):
             )
         val, cls = poe_flag(season, p.name)
         chip = f'<span class="chip {cls}">{html.escape(val)}</span>' if val else ""
+
+        gone = norm(p.name) in kept
+        mark = '<span class="kept" title="likely kept">K</span>' if gone else ""
+
+        po = ""
+        if diff and pmod:
+            d = diff.get(pmod.team(p.team), {}).get(p.pos)
+            if d is not None:
+                pcls = "easy" if d > 1.5 else ("hard" if d < -1.5 else "")
+                po = f'<span class="po {pcls}">{d:+.1f}</span>'
+
         rows.append(
-            "<tr>"
+            f'<tr class="{"gone" if gone else ""}">'
             f'<td class="rk">{pos}{p.pos_rank}</td>'
-            f'<td class="nm">{html.escape(display_name(p.name))}</td>'
+            f'<td class="nm">{html.escape(display_name(p.name))}{mark}</td>'
             f'<td class="num">{p.adp:.0f}</td>'
-            f'<td class="num bye">{html.escape(p.bye or "-")}</td>'
+            f'<td class="po-cell">{po}</td>'
             f'<td class="ly">{chip}</td>'
             "</tr>"
         )
@@ -109,12 +161,13 @@ def position_block(board, season, pos, depth):
         f'<section class="pos"><h2>{pos}</h2>'
         '<table><thead><tr>'
         '<th class="rk">#</th><th class="nm">Player</th>'
-        '<th class="num">ECR</th><th class="num">Bye</th><th class="ly">LY</th>'
+        '<th class="num">ECR</th><th class="po-cell">Wk15-17</th>'
+        '<th class="ly">LY</th>'
         "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></section>"
     )
 
 
-def build(board, league, season) -> str:
+def build(board, league, season) -> str:  # noqa: C901
     picks = snake_picks(league["my_draft_slot"], league["teams"], league["rounds"])
     keeper_picks = {
         k["pick_overall"] for k in league.get("keepers", []) if k.get("pick_overall")
@@ -126,13 +179,14 @@ def build(board, league, season) -> str:
     # RB and WR carry the draft, so they get their own columns. TE and QB are
     # short lists and stack into the third, which also kills the dead space
     # under them.
+    kept = likely_keepers(board, league, season)
+    diff, pmod = playoff_difficulty(league)
+    blk = lambda pos: position_block(  # noqa: E731
+        board, season, pos, DEPTH[pos], kept, diff, pmod
+    )
     blocks = (
-        position_block(board, season, "RB", DEPTH["RB"])
-        + position_block(board, season, "WR", DEPTH["WR"])
-        + '<div class="stack">'
-        + position_block(board, season, "TE", DEPTH["TE"])
-        + position_block(board, season, "QB", DEPTH["QB"])
-        + "</div>"
+        blk("RB") + blk("WR")
+        + '<div class="stack">' + blk("TE") + blk("QB") + "</div>"
     )
 
     plan_rows = "".join(
@@ -225,8 +279,9 @@ h1 em {{ font-style:normal; color:var(--accent); }}
 table {{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums;
   font-size:12px; table-layout:fixed; }}
 th, td {{ text-align:left; padding:3.5px 7px; }}
-thead th {{ font-size:10px; letter-spacing:.07em; text-transform:uppercase;
-  color:var(--muted); font-weight:500; border-bottom:1px solid var(--soft); }}
+thead th {{ font-size:10px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--muted); font-weight:500; border-bottom:1px solid var(--soft);
+  white-space:nowrap; }}
 tbody tr:not(.tier-head):hover {{ background:var(--soft); }}
 .tier-head th {{ font-size:10px; letter-spacing:.1em; text-transform:uppercase;
   color:var(--accent); font-weight:700; padding:9px 8px 3px;
@@ -236,7 +291,14 @@ tbody tr:not(.tier-head):hover {{ background:var(--soft); }}
 .nm {{ font-weight:600; letter-spacing:-.015em; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis; }}
 .num {{ text-align:right; width:34px; }}
-.bye {{ color:var(--muted); }}
+.po-cell {{ width:56px; text-align:right; }}
+.po {{ font-size:10.5px; color:var(--muted); }}
+.po.easy {{ color:var(--cold); font-weight:600; }}
+.po.hard {{ color:var(--hot); font-weight:600; }}
+.kept {{ display:inline-block; margin-left:5px; padding:0 3px; font-size:9px;
+  font-weight:700; border-radius:2px; background:var(--accent); color:#fff;
+  vertical-align:1px; }}
+tr.gone .nm, tr.gone .rk, tr.gone .num {{ opacity:.45; }}
 .ly {{ width:46px; text-align:right; }}
 .chip {{ display:inline-block; padding:1px 5px; font-size:10.5px; font-weight:600;
   border-radius:2px; color:var(--muted); }}
@@ -314,9 +376,11 @@ footer code {{ color:var(--ink); background:var(--soft); padding:1px 5px; }}
 </div>
 
 <footer>
-  <span><b>LY</b> = 2025 points over expected per game.</span>
-  <span><span class="chip hot">+3.4</span> outran its usage &mdash; regression risk.</span>
-  <span><span class="chip cold">-2.6</span> underran it &mdash; bounce-back.</span>
+  <span><span class="kept">K</span> likely kept by another team &mdash; assume gone.</span>
+  <span><b>Wk15-17</b> = playoff schedule, points vs average. Tiebreaker only.</span>
+  <span><b>LY</b> = 2025 points over expected/game.
+  <span class="chip hot">+3.4</span> fade &middot;
+  <span class="chip cold">-2.6</span> partial bounce.</span>
   <span><code>go</code> recommend &middot; <code>me &lt;name&gt;</code> your pick &middot;
   <code>why &lt;name&gt;</code> 2025 card &middot; <code>undo</code></span>
 </footer>

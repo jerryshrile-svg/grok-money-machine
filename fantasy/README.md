@@ -30,6 +30,7 @@ python3 cheatsheet.py          # -> cheatsheet.html, printable draft-day sheet
 python3 draft_day.py           # live assistant — run this during the draft
 
 python3 backtest.py            # replay five real seasons; validates the rule
+python3 validate.py            # does the regression signal actually predict?
 python3 -m unittest test_toolkit   # 47 tests; run before draft day
 ```
 
@@ -123,6 +124,14 @@ finish built on a WR6 workload.
 Rookies and players who missed 2025 show as `new`; there is no usage history to
 read and the consensus rank is the only signal.
 
+**This is validated, not assumed** — `python3 validate.py` tests it against four
+seasons. Points-over-expected repeats only ~4% year to year, so it is
+overwhelmingly noise. Hot players gave back **91%** of the gap between what they
+scored and what their usage earned; cold players recovered only **31%** of
+theirs. So the fade list is about three times more trustworthy than the buy list:
+treat a hot player as coming back to his expected line, and a cold one as a
+partial bounce, not a full one.
+
 ## Draft day
 
 Run `draft_day.py` in a terminal beside your Yahoo draft window. Type each pick as
@@ -181,6 +190,7 @@ against when it is.
 | `cheatsheet.py` | Builds the printable one-page cheat sheet from the live board. |
 | `draft_day.py` | Live draft assistant. |
 | `backtest.py` | Replays 2021-2025 with no lookahead and scores on real results. |
+| `validate.py` | Tests the points-over-expected claim against four seasons. |
 | `test_toolkit.py` | Invariants that would otherwise break silently mid-draft. |
 
 ## Before you draft

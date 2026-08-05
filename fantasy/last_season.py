@@ -12,7 +12,14 @@ yards, and touchdowns. Compare that to what a player actually produced:
       If the consensus is still paying for that season, you're buying the noise.
 
   POE strongly negative -> real usage, unlucky finish. If the consensus faded
-      them for it, that's the cheapest edge on the board.
+      them for it, that's a cheap edge — but a weaker one, see below.
+
+Validated against four seasons by `validate.py`: points-over-expected repeats
+only about 4% year to year, so it is overwhelmingly noise. Hot players gave back
+91% of the gap between what they scored and what their usage earned. Cold players
+recovered only 31% of theirs. **The fade signal is roughly three times more
+reliable than the buy signal** — a hot player really does come back to his
+expected line; a cold one only partly bounces.
 
 Usage (snap share, target share) is the sticky part and is shown alongside, because
 POE only matters when the opportunity is real.

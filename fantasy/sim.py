@@ -98,6 +98,18 @@ def _my_pick(pool, roster_counts, round_no, rounds, strategy, league, rng, horiz
 
     wanted = strategy[round_no - 1] if round_no - 1 < len(strategy) else "BPA"
 
+    if wanted == "ECR":
+        # What a normal manager does: take the best player left on the list.
+        cands = [
+            p for p in pool
+            if norm_pos(p.pos) not in ("K", "DEF")
+            and roster_counts[norm_pos(p.pos)] < POS_CAP.get(norm_pos(p.pos), 8)
+        ]
+        need = starter_needs(roster_counts, league)
+        fillers = [p for p in cands
+                   if need.get(norm_pos(p.pos), 0) > 0 or need.get("FLEX", 0) > 0]
+        return min(fillers or cands or pool, key=lambda p: p.adp)
+
     if wanted == "WAIT":
         return _wait_cost_pick(pool, roster_counts, round_no, league, rng, horizon)
 
@@ -299,6 +311,7 @@ STRATEGIES = {
     "Elite TE early": ["RB", "TE", "WR", "WR", "RB", "BPA", "BPA", "QB", "BPA", "BPA", "BPA", "BPA", "BPA", "BPA"],
     "Zero RB": ["WR", "WR", "WR", "TE", "BPA", "RB", "RB", "QB", "RB", "BPA", "BPA", "BPA", "BPA", "BPA"],
     "Wait-cost (live tool)": ["WAIT"] * 14,
+    "Consensus list": ["ECR"] * 14,
 }
 
 

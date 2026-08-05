@@ -18,6 +18,7 @@ from collections import defaultdict
 
 import draft_day
 import engine
+from last_season import norm as norm_name
 import opponent
 import sim
 from engine import Player
@@ -424,6 +425,49 @@ class PlayoffSchedule(unittest.TestCase):
         for pos in self.playoffs.SKILL:
             vals = [d[pos] for d in diff.values()]
             self.assertAlmostEqual(sum(vals) / len(vals), 0.0, delta=0.6)
+
+
+class Backtest(unittest.TestCase):
+    """Only runs when the historical inputs are present."""
+
+    def setUp(self):
+        import backtest
+
+        self.bt = backtest
+        if not os.path.exists(os.path.join(backtest.HIST, "ecr_2024.csv")):
+            self.skipTest("historical rankings not extracted")
+        if not os.path.exists(os.path.join(backtest.RAW, "stats_2021.csv")):
+            self.skipTest("historical stats not fetched")
+        self.league = engine.load_league()
+
+    def test_points_curve_honours_its_season_window(self):
+        """If the window were ignored, the backtest would be scoring itself."""
+        from build_projections import points_curve
+
+        early = points_curve(self.league["scoring"], range(2018, 2021))
+        late = points_curve(self.league["scoring"], range(2022, 2025))
+        self.assertNotEqual(early["RB"][:10], late["RB"][:10])
+
+    def test_board_for_a_season_uses_only_prior_results(self):
+        """Rebuilding with a deliberately wrong window must change the board."""
+        from build_projections import points_curve
+
+        real = points_curve(self.league["scoring"], range(2021, 2024))
+        shifted = points_curve(self.league["scoring"], range(2022, 2025))
+        self.assertNotEqual(real["WR"][:5], shifted["WR"][:5])
+
+    def test_unplayed_roster_scores_zero(self):
+        roster = [Player(name="Nobody At All", pos="RB", team="XX", adp=1, points=200)]
+        self.assertEqual(self.bt.score_roster(roster, {1: {}}, LEAGUE), 0.0)
+
+    def test_lineup_cannot_start_more_than_the_slots_allow(self):
+        roster = [
+            Player(name=f"RB {i}", pos="RB", team="X", adp=i, points=300 - i)
+            for i in range(1, 11)
+        ]
+        week = {norm_name(p.name): 10.0 for p in roster}
+        # 2 RB + 1 FLEX = 3 startable, at 10 points each, for one week.
+        self.assertEqual(self.bt.score_roster(roster, {1: week}, LEAGUE), 30.0)
 
 
 class RealDataSmoke(unittest.TestCase):

@@ -100,11 +100,16 @@ def season_totals(season: int, scoring: dict) -> dict[str, tuple[str, float]]:
     return {n: (pos_of[n], p) for n, p in totals.items()}
 
 
-def points_curve(scoring: dict) -> dict[str, list[float]]:
-    """Historical points by positional finish, averaged over recent seasons."""
+def points_curve(scoring: dict, seasons=None) -> dict[str, list[float]]:
+    """Historical points by positional finish, averaged over recent seasons.
+
+    `seasons` is a parameter so the backtest can build a curve from only the
+    seasons that preceded the year being tested — using later data would leak
+    the answer into the projection.
+    """
     per_season: dict[str, list[list[float]]] = defaultdict(list)
 
-    for season in SEASONS:
+    for season in (seasons or SEASONS):
         totals = season_totals(season, scoring)
         by_pos: dict[str, list[float]] = defaultdict(list)
         for _, (pos, pts) in totals.items():

@@ -408,3 +408,32 @@ of them is already downloaded.
 So the priority after 15 August is not a better board. It is the waiver tool —
 and it has to be built on opportunity metrics, because the version built on
 points has now been measured and is barely worth running.
+
+---
+
+## 10. A change that was measured and rejected
+
+Worth recording, because the reasoning was persuasive and wrong.
+
+A full 14-round rehearsal showed the tool taking two quarterbacks in a one-QB
+league. That looks like an obvious waste: with 5 bench spots and hundreds of
+unowned players, you can stream the position, so a backup should be discounted
+heavily. The discount was applied and then measured across five seasons, scored
+both without waivers and with them:
+
+```
+BACKUP_WEIGHT     draft-only    with waivers
+0.08                    1591            1611
+0.35                    1606            1622
+```
+
+It lost under both, and the full backtest fell from +44 points a season over the
+consensus list to +27, from four winning seasons to three. So the change was
+reverted.
+
+Two things to take from it. Backup value is real — byes and injuries have to be
+covered every week, and a high-value QB2 or TE2 can genuinely beat the marginal
+receiver you would otherwise take. And more usefully: **the intuition sounded
+right, was specific, and was still wrong.** Anything that "obviously" improves
+the board should be run through `backtest.py` before it is kept, including
+changes that come from me.

@@ -53,10 +53,24 @@ KDEF_LAST_ROUNDS = 3
 
 POS_CAP = {"QB": 2, "TE": 2, "K": 1, "DEF": 1, "RB": 7, "WR": 8}
 
-# Weighting for players you don't currently need. Flex-eligible depth keeps most
-# of its value; a backup at a one-slot position keeps very little.
+# Weighting for players you don't currently need.
+#
+# These are deliberately equal. The obvious-looking improvement is to discount a
+# backup at a one-slot position — a second quarterback in a one-QB league looks
+# worthless when the waiver wire holds hundreds of unowned players. That was
+# tried at 0.08 and measured both ways across five seasons:
+#
+#     BACKUP_WEIGHT     draft-only    with waivers
+#     0.08                    1591            1611
+#     0.35                    1606            1622
+#
+# It lost under both, including the arm that allows streaming, and the full
+# backtest fell from +44 points a season over the consensus list to +27. Backup
+# value is real: byes and injuries have to be covered, and a high-value QB2 or
+# TE2 can genuinely beat the marginal receiver. Don't re-apply the intuition
+# without re-running that comparison.
 DEPTH_WEIGHT = 0.35
-BACKUP_WEIGHT = 0.08
+BACKUP_WEIGHT = 0.35
 
 
 def norm_pos(pos: str) -> str:
@@ -108,12 +122,9 @@ class RunTracker:
 def value_weight(pos: str, need: dict, league: dict) -> float:
     """How much a player's raw value counts, given what your roster still needs.
 
-    Three cases, and the third is the one that matters. A back or receiver you
-    don't strictly need still has real value: injuries happen, and the flex
-    churns. A *second quarterback* in a one-QB league has almost none — you can
-    stream the position off a waiver wire holding 400 unowned players. Weighting
-    those the same spends a mid-round pick on a bench quarterback who never
-    starts.
+    A player who fills an open starting slot counts fully. Everyone else is
+    discounted, but only to the depth weight — see the note on the constants for
+    why backups are not discounted further, which is not what intuition says.
     """
     flex_ok = set(league.get("flex_eligible", ["RB", "WR", "TE"]))
     if need.get(pos, 0) > 0:

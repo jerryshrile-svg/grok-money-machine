@@ -1,9 +1,9 @@
 """Does chasing opportunity beat chasing points on the waiver wire?
 
-`season_value.py` measured the wire and found the gap that matters: a manager
-reacting to recent fantasy points captures about +17 points a season, while a
-manager with hindsight would capture +287. Roughly 270 points a season sit
-between those, which dwarfs the entire draft lever of +30.
+`season_value.py` measured the wire: a manager reacting to recent fantasy points
+captures about +17 points a season, while a manager with hindsight captures
++275. Most of that gap is unreachable — the hindsight arm knows in week 3 what a
+player will average through week 17 — but some of it is not.
 
 The standing claim — made before any of this was built and never tested — is
 that the gap exists because **points are the wrong signal**. A player's snaps,
@@ -18,6 +18,18 @@ roster rules. The only thing that changes is what the manager looks at:
                 the touchdown luck lands on top
   BLENDED       both, averaged
   PERFECT       hindsight, as the ceiling
+
+Measured over 320 paired seasons, the answer is yes, and by a real margin:
+
+    points        +17 ± 3     6% of the ceiling
+    opportunity   +28 ± 4    10%
+    blended       +30 ± 4    11%
+
+    opportunity vs points:  +11 ± 3  -> real
+    blended vs opportunity:  +2 ± 2  -> inside the noise
+
+So watch expected points rather than the scoreboard, and don't bother blending
+the two — the extra complexity buys nothing measurable.
 
 Expected-points data starts in 2022, so this runs on four seasons rather than
 five.

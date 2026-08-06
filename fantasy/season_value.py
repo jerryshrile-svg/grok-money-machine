@@ -26,6 +26,11 @@ A third arm marks the ceiling:
   PERFECT       one add per week with hindsight — the most the wire could ever
                 have been worth, which nobody achieves
 
+Read the PERFECT arm carefully: it knows in week 3 what a player will average
+through week 17. It marks the theoretical ceiling, not a target. `waiver_signal.py`
+shows the best realistically-available rule reaches about 11% of it, so treat the
+gap as mostly unreachable rather than merely unclaimed.
+
     python3 season_value.py            # all seasons
     python3 season_value.py 2024 20    # one season, 20 drafts
 """

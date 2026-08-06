@@ -507,3 +507,43 @@ never the single best plan in a given season — it was beaten in 2021 and 2024 
 and it is the only one that is positive in every season.** It wins on robustness,
 not on peak, which is exactly what you want when you cannot know in advance which
 kind of year you are drafting into.
+
+---
+
+## 13. The in-season signal, finally tested
+
+The claim in section 2 — that waiver decisions should follow **opportunity, not
+points** — was made before any of this existed and repeated for weeks without
+evidence. It is now measured, over 320 paired seasons. Same drafted rosters, same
+one-add-a-week budget, same real scoring; only what the manager looks at changes.
+
+```
+MANAGER READS     SEASON PTS   vs NO WAIVERS   % OF CEILING
+no waivers              1599        +0                  0%
+points                  1616       +17 ± 3              6%
+opportunity             1627       +28 ± 4             10%
+blended                 1629       +30 ± 4             11%
+perfect                 1874      +275 ± 6            100%
+
+opportunity vs points:  +11 ± 3  -> real
+blended vs opportunity:  +2 ± 2  -> inside the noise
+```
+
+**The claim holds.** Watching expected points instead of the scoreboard is worth
++11 a season at nearly four standard errors — about a third of the entire draft
+edge, from one change in what you look at. And blending the two signals adds
+nothing measurable, so the in-season tool should read expected points only. That
+is a simpler tool than the one this playbook originally described.
+
+### Two corrections to earlier sections
+
+**Section 9 oversold the opportunity.** It called the gap to the hindsight
+ceiling "roughly 270 points a season" of addressable value. That was wrong. The
+ceiling arm knows in week 3 what a player will average through week 17; no signal
+available in real time can approach it. The best rule reaches 11% of it. Most of
+that gap is unreachable, not merely unclaimed.
+
+**Section 9 also implied waivers dwarf the draft.** On the corrected numbers the
+two levers are close to equal: the draft is worth +30 a season, and the best
+waiver rule is worth +28. They are comparable, and you want both. What is true is
+that the draft's edge is already captured and the waiver edge is not.

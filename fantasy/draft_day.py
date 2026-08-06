@@ -356,10 +356,9 @@ class Draft:
         print(f"\n{DIM}WAIT COST = this player's value minus the value you'd expect "
               f"to still get\n             at this position at pick {nxt}. "
               f"Highest number is the pick.\n"
-              f"LY        = 2025 points over expected per game. "
-              f"{YEL}yellow{DIM} outran its usage\n"
-              f"             (regression risk), {GRN}green{DIM} underran it "
-              f"(bounce-back). 'why <name>' for detail.{OFF}")
+              f"LY        = 2025 points over expected per game. Positive outran "
+              f"its usage\n             (fade it); negative underran it (expect a "
+              f"partial bounce, not a full one).{OFF}")
         self.show_needs(inline=True)
 
     def show_board(self, pos: str | None = None, top: int = 20):

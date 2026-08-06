@@ -533,6 +533,48 @@ class WaiverModel(unittest.TestCase):
         self.assertGreaterEqual(best, base)
 
 
+class AdviseFrontEnd(unittest.TestCase):
+    """The chat front end must never guess, and must never lose picks."""
+
+    def setUp(self):
+        import advise
+
+        self.advise = advise
+        self.board = make_board()
+        self.d = draft_day.Draft(LEAGUE, self.board)
+
+    def test_splits_commas_newlines_and_numbered_lists(self):
+        blob = "1. Alpha One, 2) Beta Two\n3: Gamma Three; Delta Four"
+        self.assertEqual(
+            self.advise.split_names(blob),
+            ["Alpha One", "Beta Two", "Gamma Three", "Delta Four"],
+        )
+
+    def test_ambiguous_name_returns_options_not_a_guess(self):
+        """Guessing between two players would silently corrupt the board."""
+        player, options = self.advise.resolve(self.d, "Player 1")
+        self.assertIsNone(player)
+        self.assertGreater(len(options), 1)
+
+    def test_exact_name_resolves(self):
+        player, options = self.advise.resolve(self.d, "RB Player 1")
+        self.assertIsNotNone(player)
+        self.assertEqual(player.name, "RB Player 1")
+        self.assertEqual(options, [])
+
+    def test_already_drafted_name_does_not_resolve(self):
+        target = self.board[0]
+        self.d.record(target, mine=False)
+        player, options = self.advise.resolve(self.d, target.name)
+        self.assertIsNone(player)
+        self.assertEqual(options, [])
+
+    def test_unknown_name_returns_nothing(self):
+        player, options = self.advise.resolve(self.d, "Zzzz Nobody")
+        self.assertIsNone(player)
+        self.assertEqual(options, [])
+
+
 class RealDataSmoke(unittest.TestCase):
     """Only runs when projections have been built."""
 

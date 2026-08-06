@@ -28,6 +28,7 @@ python3 last_season.py player bijan
 
 python3 cheatsheet.py          # -> cheatsheet.html, printable draft-day sheet
 python3 draft_day.py           # live assistant — run this during the draft
+python3 advise.py add "..."    # same advice from pasted picks, for chat
 
 python3 backtest.py            # replay five real seasons; validates the rule
 python3 validate.py            # does the regression signal actually predict?
@@ -166,6 +167,27 @@ after every pick, so a closed terminal doesn't lose your draft; delete it to sta
 over. `undo` fixes a mistyped pick. Worth one dry run so the commands are muscle
 memory under the clock.
 
+### Driving it from chat instead
+
+`advise.py` is the same board and the same rule behind a paste-friendly
+interface, for when you'd rather send picks to an assistant than run a terminal.
+
+```bash
+python3 advise.py add "Chase, Gibbs, Nacua, Smith-Njigba"
+```
+
+Picks go in **draft order** and ownership is worked out from the snake, so there
+is nothing to mark as yours and no way to forget. Your keeper fills its own slot.
+When the next pick is yours it prints the full table plus a one-line verdict.
+
+An ambiguous name (`McCaffrey` matches two players) stops the batch and asks
+rather than guessing, and nothing after it is recorded — a wrong name silently
+recorded would corrupt every later survival number. `undo` and `reset` do what
+they say.
+
+State lives in `data/live_draft.json`, which is committed rather than ignored, so
+the draft survives the machine going away between picks.
+
 ### On Yahoo
 
 Yahoo's API doesn't expose live draft state reliably mid-draft, so the assistant is
@@ -190,6 +212,7 @@ against when it is.
 | `playoffs.py` | Weeks 15-17 schedule difficulty — a tiebreaker between close players. |
 | `cheatsheet.py` | Builds the printable one-page cheat sheet from the live board. |
 | `draft_day.py` | Live draft assistant. |
+| `advise.py` | Chat front end: paste picks in order, get the recommendation. |
 | `backtest.py` | Replays 2021-2025 with no lookahead and scores on real results. |
 | `validate.py` | Tests the points-over-expected claim against four seasons. |
 | `season_value.py` | Measures the waiver wire against the draft across five seasons. |

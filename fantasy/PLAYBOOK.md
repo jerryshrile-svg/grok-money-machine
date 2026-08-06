@@ -577,6 +577,14 @@ fails if any of them has stopped being true, and it prints the open gaps every
 time it runs so they cannot quietly fall off the list. **A claim that cannot be
 re-measured does not belong in this playbook.**
 
+Its own first version proved the point immediately. It parsed the wrong two
+columns out of the backtest — reading the raw season-points total as the edge —
+and reported `+1590 ± 41` as a pass. The check was effectively asserting that
+points exceed twice the difference, which is true regardless of whether the rule
+works at all. **A verifier that cannot fail is worse than no verifier, because it
+manufactures confidence.** There are now four tests on the parser itself,
+including one that feeds it a dead edge and requires a failure.
+
 The rule that follows: any change to the board, the weighting or the opponent
 model gets run through `verify.py --full` before it is believed — including
 changes that seem obviously correct, and especially those.

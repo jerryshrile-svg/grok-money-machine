@@ -575,6 +575,53 @@ class AdviseFrontEnd(unittest.TestCase):
         self.assertEqual(options, [])
 
 
+class Verifier(unittest.TestCase):
+    """The verifier has to actually verify.
+
+    Its first version parsed the wrong two columns and reported the raw points
+    total as the edge, so the check passed on a comparison it never made. A
+    verifier that cannot fail is worse than none, because it manufactures
+    confidence.
+    """
+
+    def setUp(self):
+        import verify
+
+        self.verify = verify
+
+    SAMPLE = (
+        "--- 2021 --- (name match 98%)\n"
+        "STRATEGY                  ACTUAL PTS         vs CONSENSUS\n"
+        "Wait-cost (live tool)           1565           +23 \u00b1    4\n"
+        "Consensus list                  1542            +0 \u00b1    0\n"
+        "\n"
+        "=== Across all seasons, points above simply drafting the list ===\n"
+        "STRATEGY                     MEAN   \u00b1 SE    WINS  VERDICT\n"
+        "Wait-cost (live tool)         +30      2    5/5  real\n"
+        "Consensus list                 +0      0    0/5  baseline\n"
+    )
+
+    def test_reads_the_summary_not_the_first_season_block(self):
+        self.assertEqual(self.verify.parse_backtest_summary(self.SAMPLE), (30.0, 2.0))
+
+    def test_never_returns_the_raw_points_column(self):
+        """1565 is season points, not an edge. Returning it is the old bug."""
+        mean, _se = self.verify.parse_backtest_summary(self.SAMPLE)
+        self.assertLess(abs(mean), 500)
+
+    def test_missing_summary_fails_rather_than_guessing(self):
+        no_summary = self.SAMPLE.split("=== Across")[0]
+        self.assertIsNone(self.verify.parse_backtest_summary(no_summary))
+
+    def test_a_dead_edge_is_reported_as_failure(self):
+        dead = self.SAMPLE.replace(
+            "Wait-cost (live tool)         +30      2    5/5  real",
+            "Wait-cost (live tool)          +3      5    2/5  inside the noise",
+        )
+        mean, se = self.verify.parse_backtest_summary(dead)
+        self.assertFalse(mean > 2 * se)
+
+
 class RealDataSmoke(unittest.TestCase):
     """Only runs when projections have been built."""
 

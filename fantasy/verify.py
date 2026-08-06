@@ -92,19 +92,39 @@ def check_backtest_claim(n=120):
     label = "claim: wait-cost beats the consensus list"
     if proc.returncode != 0:
         return label, False, "backtest failed to run"
-    line = next(
-        (ln for ln in proc.stdout.split("\n") if ln.startswith("Wait-cost")), ""
-    )
-    if not line:
-        return label, False, "no wait-cost row in output"
-    parts = line.split()
-    try:
-        mean, se = float(parts[3]), float(parts[4])
-    except (IndexError, ValueError):
-        return label, False, f"could not parse: {line.strip()}"
+    parsed = parse_backtest_summary(proc.stdout)
+    if parsed is None:
+        return label, False, "could not find the across-seasons summary"
+    mean, se = parsed
     ok = mean > 2 * se
-    return (f"{label} ({mean:+.0f} ± {se:.0f})", ok,
+    return (f"{label} ({mean:+.0f} ± {se:.0f} a season)", ok,
             "" if ok else "edge is no longer distinguishable from noise")
+
+
+SUMMARY_MARKER = "Across all seasons"
+
+
+def parse_backtest_summary(text: str):
+    """Pull the pooled edge and its standard error out of backtest output.
+
+    Anchored on the across-seasons summary, not on the first matching row. The
+    per-season blocks use a different column layout, and reading those gave a
+    figure of +1590 — the raw points column — which made the check pass on a
+    comparison it was never making.
+    """
+    if SUMMARY_MARKER not in text:
+        return None
+    tail = text.split(SUMMARY_MARKER, 1)[1]
+    for line in tail.split("\n"):
+        if not line.startswith("Wait-cost"):
+            continue
+        parts = line.split()
+        # e.g. Wait-cost (live tool)  +30  2  5/5  real
+        try:
+            return float(parts[3]), float(parts[4])
+        except (IndexError, ValueError):
+            return None
+    return None
 
 
 def main() -> int:

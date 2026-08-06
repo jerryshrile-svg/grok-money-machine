@@ -45,11 +45,13 @@ PLAN = [
 RULES = [
     ("Take the highest wait cost",
      "Not best available. Value now minus what you'd still get at that position "
-     "at your next pick. Backtested over five real seasons: beat drafting straight "
-     "off the list in 4 of 5, by roughly 25-45 points a season."),
+     "at your next pick. Backtested over 20,000 drafts across five real seasons: "
+     "+30 points a season over drafting straight off the list, and the only "
+     "strategy that won all five."),
     ("Don't run a script",
-     "A rigid RB-heavy plan backtested at -26 and lost 4 of 5 seasons. The rule "
-     "wins because it reacts. React."),
+     "RB-heavy was the best plan of 2021 and the worst of 2024. Averaged over "
+     "five seasons it is 21 points WORSE than drafting off the list. No fixed "
+     "plan survives; the rule wins by reacting. React."),
     ("Assume the K players are gone",
      "Seven teams keep one each, and a keeper costs the round he went last year — "
      "so last season's late breakouts vanish, not this season's best players."),

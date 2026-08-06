@@ -466,3 +466,44 @@ beats drafting straight off the consensus list, in four seasons out of five.**
 The magnitude moves between roughly +25 and +45 depending on the sample. Quote
 the range, not a point estimate — and treat any single backtest run at these
 sample sizes as a rough number, including when it says something flattering.
+
+---
+
+## 12. The settled numbers
+
+20,000 drafts — 800 per strategy per season, five seasons — with every strategy
+facing identical opponents on each draft so the comparison is paired. This
+supersedes every earlier figure in this document.
+
+```
+STRATEGY                     MEAN   ± SE    WINS  VERDICT
+Wait-cost (live tool)         +30      2    5/5  real
+Consensus list                 +0      0    0/5  baseline
+Zero RB                        -2      3    2/5  inside the noise
+RB heavy                      -21      3    1/5  real, and bad
+BPA (my board)               -144      3    0/5  real, and bad
+```
+
+**The wait-cost rule is +30 points a season and won all five.** At a standard
+error of 2 that is fifteen standard errors from zero — not a close call. Earlier
+runs had it at 4 of 5 with a loss in 2025; at proper sample size, 2025 is +9 and
+the record is perfect.
+
+**Zero-RB is not an edge.** Earlier noisy runs put it at +10 winning 4 of 5. It
+is -2 ± 3, which is nothing.
+
+The per-season detail explains why a fixed plan cannot work:
+
+```
+            2021    2022    2023    2024    2025
+RB heavy     +45      -8     -34     -44     -65
+Zero RB      +42     -37      -1    +104    -118
+Wait-cost    +23     +22      +2     +93      +9
+```
+
+RB-heavy was the best plan available in 2021 and among the worst in 2025.
+Zero-RB swung from +104 to -118 in consecutive years. **The wait-cost rule is
+never the single best plan in a given season — it was beaten in 2021 and 2024 —
+and it is the only one that is positive in every season.** It wins on robustness,
+not on peak, which is exactly what you want when you cannot know in advance which
+kind of year you are drafting into.

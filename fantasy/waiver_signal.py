@@ -156,24 +156,43 @@ def main() -> int:
         print("no data")
         return 1
 
-    base = season_value.__dict__  # noqa: F841  (kept for clarity of intent)
+    import math
+
     mean = lambda xs: sum(xs) / len(xs)  # noqa: E731
-    floor = mean(rows["no waivers"])
-    ceiling = mean(rows["perfect"])
-    span = ceiling - floor
+
+    def paired(a, b):
+        """Difference and its standard error, using the pairing across arms."""
+        diffs = [x - y for x, y in zip(a, b)]
+        mu = mean(diffs)
+        if len(diffs) < 2:
+            return mu, 0.0
+        var = sum((d - mu) ** 2 for d in diffs) / (len(diffs) - 1)
+        return mu, math.sqrt(var / len(diffs))
+
+    floor_arm = rows["no waivers"]
+    span = mean(rows["perfect"]) - mean(floor_arm)
 
     print(f"\nWaiver signal comparison — {n} drafts per season, "
           f"{len(seasons)} seasons, real results.\n")
-    print(f"{'MANAGER READS':<16} {'SEASON PTS':>11} {'vs NO WAIVERS':>14} "
+    print(f"{'MANAGER READS':<16} {'SEASON PTS':>11} {'vs NO WAIVERS':>16} "
           f"{'% OF CEILING':>13}")
-    print("-" * 58)
+    print("-" * 62)
     for label in ("no waivers", "points", "opportunity", "blended", "perfect"):
         if label not in rows:
             continue
-        m = mean(rows[label])
-        gain = m - floor
+        gain, se = paired(rows[label], floor_arm)
         pct = (gain / span * 100) if span else 0.0
-        print(f"{label:<16} {m:>11.0f} {gain:>+14.0f} {pct:>12.0f}%")
+        se_txt = f"± {se:.0f}" if label != "no waivers" else "     "
+        print(f"{label:<16} {mean(rows[label]):>11.0f} "
+              f"{gain:>+11.0f} {se_txt:<5} {pct:>11.0f}%")
+
+    # The comparison that the whole thesis rests on.
+    gain, se = paired(rows["opportunity"], rows["points"])
+    verdict = "real" if abs(gain) > 2 * se else "INSIDE THE NOISE"
+    print(f"\nopportunity vs points: {gain:+.0f} ± {se:.0f}  -> {verdict}")
+    gain, se = paired(rows["blended"], rows["opportunity"])
+    verdict = "real" if abs(gain) > 2 * se else "inside the noise"
+    print(f"blended vs opportunity: {gain:+.0f} ± {se:.0f}  -> {verdict}")
 
     print("\nEvery arm plays the same drafted rosters and is scored on the same")
     print("real production. Only what the manager looks at when deciding changes.")

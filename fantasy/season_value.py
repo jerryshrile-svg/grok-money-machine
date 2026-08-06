@@ -226,9 +226,9 @@ def main() -> int:
     print("-" * 60)
     print(f"{'mean':<8} {'':>11} {'':>13} {mean(gains):>+7.0f} {'':>9} "
           f"{mean(ceilings):>+8.0f}")
-    print(f"\nFor comparison, the draft-strategy edge measured by backtest.py was")
-    print(f"+44 points a season — the gap between using the wait-cost rule and")
-    print(f"simply drafting the consensus list.")
+    print("\nFor comparison, the draft-strategy edge measured by backtest.py is")
+    print("roughly 25-45 points a season, winning 4 of 5 — the gap between the")
+    print("wait-cost rule and simply drafting the consensus list.")
     return 0
 
 

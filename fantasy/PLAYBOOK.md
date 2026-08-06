@@ -437,3 +437,32 @@ receiver you would otherwise take. And more usefully: **the intuition sounded
 right, was specific, and was still wrong.** Anything that "obviously" improves
 the board should be run through `backtest.py` before it is kept, including
 changes that come from me.
+
+---
+
+## 11. On the number I kept quoting
+
+The wait-cost rule's edge was reported as "+44 points a season" for several days,
+including on the printed cheat sheet. That was one backtest run at forty drafts
+per strategy, treated as if it were precise. It is not.
+
+Re-running after unrelated changes produced +27. Chasing that gap turned up a
+genuine logic bug — the weighting condition read `need[pos] > 0 or need[FLEX] > 0`
+and so gave backup quarterbacks full weight whenever any flex slot was open, even
+though a quarterback cannot fill one — but a head-to-head on identical seeds
+showed the fixed version is *better*, not worse:
+
+```
+RULE           draft-only   with waivers   QBs drafted
+legacy               1585           1608          2.00
+flex-aware           1596           1612          2.00
+```
+
+So the bug was real and worth fixing, and it was not the cause of the difference.
+The +44 and the +27 are the same measurement taken twice.
+
+**What is stable across every run is the direction and the win rate: the rule
+beats drafting straight off the consensus list, in four seasons out of five.**
+The magnitude moves between roughly +25 and +45 depending on the sample. Quote
+the range, not a point estimate — and treat any single backtest run at these
+sample sizes as a rough number, including when it says something flattering.

@@ -64,11 +64,16 @@ POS_CAP = {"QB": 2, "TE": 2, "K": 1, "DEF": 1, "RB": 7, "WR": 8}
 #     0.08                    1591            1611
 #     0.35                    1606            1622
 #
-# It lost under both, including the arm that allows streaming, and the full
-# backtest fell from +44 points a season over the consensus list to +27. Backup
-# value is real: byes and injuries have to be covered, and a high-value QB2 or
-# TE2 can genuinely beat the marginal receiver. Don't re-apply the intuition
-# without re-running that comparison.
+# It lost, and a later sweep confirmed the shape: 0.08 and 0.35 are within noise
+# of each other, while 0.6 and 1.0 are clearly worse. Backup value is real —
+# byes and injuries need covering every week, and a strong QB2 or TE2 can beat
+# the marginal receiver. Don't re-apply the intuition without re-running that
+# comparison.
+#
+# The flex-aware condition in value_weight below was also measured head-to-head
+# against the older `need[pos] or need[FLEX]` version, which gave backups full
+# weight whenever any flex slot was open even though a quarterback cannot fill
+# one. Flex-aware won under both scorings on identical seeds.
 DEPTH_WEIGHT = 0.35
 BACKUP_WEIGHT = 0.35
 

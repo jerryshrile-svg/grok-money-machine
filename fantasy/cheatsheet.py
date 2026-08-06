@@ -45,8 +45,8 @@ PLAN = [
 RULES = [
     ("Take the highest wait cost",
      "Not best available. Value now minus what you'd still get at that position "
-     "at your next pick. Backtested at +44 points a season over drafting the list, "
-     "winning 4 of 5."),
+     "at your next pick. Backtested over five real seasons: beat drafting straight "
+     "off the list in 4 of 5, by roughly 25-45 points a season."),
     ("Don't run a script",
      "A rigid RB-heavy plan backtested at -26 and lost 4 of 5 seasons. The rule "
      "wins because it reacts. React."),

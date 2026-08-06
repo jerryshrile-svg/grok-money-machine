@@ -38,7 +38,7 @@ from engine import (
     slot_for_pick,
     snake_picks,
 )
-from opponent import RunTracker, choose
+from opponent import RunTracker, choose, value_weight
 
 STATE_PATH = os.path.join(HERE, "draft_state.json")
 
@@ -314,9 +314,7 @@ class Draft:
                 continue
             # What you give up by waiting on this position until your next pick.
             cost_to_wait = p.vorp - exp_next.get(pos, 0.0)
-            # Discount positions where you have no starting slot left.
-            starter_slot = need.get(pos, 0) > 0 or need.get("FLEX", 0) > 0
-            weight = 1.0 if starter_slot else 0.35
+            weight = value_weight(pos, need, self.league)
             rows.append((cost_to_wait * weight, p, probs.get(p.name, 1.0), cost_to_wait))
 
         rows.sort(key=lambda r: -r[0])

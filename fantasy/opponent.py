@@ -53,6 +53,11 @@ KDEF_LAST_ROUNDS = 3
 
 POS_CAP = {"QB": 2, "TE": 2, "K": 1, "DEF": 1, "RB": 7, "WR": 8}
 
+# Weighting for players you don't currently need. Flex-eligible depth keeps most
+# of its value; a backup at a one-slot position keeps very little.
+DEPTH_WEIGHT = 0.35
+BACKUP_WEIGHT = 0.08
+
 
 def norm_pos(pos: str) -> str:
     return "DEF" if pos in ("DST", "D/ST") else pos
@@ -98,6 +103,24 @@ class RunTracker:
         clone = RunTracker(self.window)
         clone.recent = list(self.recent)
         return clone
+
+
+def value_weight(pos: str, need: dict, league: dict) -> float:
+    """How much a player's raw value counts, given what your roster still needs.
+
+    Three cases, and the third is the one that matters. A back or receiver you
+    don't strictly need still has real value: injuries happen, and the flex
+    churns. A *second quarterback* in a one-QB league has almost none — you can
+    stream the position off a waiver wire holding 400 unowned players. Weighting
+    those the same spends a mid-round pick on a bench quarterback who never
+    starts.
+    """
+    flex_ok = set(league.get("flex_eligible", ["RB", "WR", "TE"]))
+    if need.get(pos, 0) > 0:
+        return 1.0
+    if pos in flex_ok:
+        return 1.0 if need.get("FLEX", 0) > 0 else DEPTH_WEIGHT
+    return BACKUP_WEIGHT
 
 
 def choose(

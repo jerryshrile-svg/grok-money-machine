@@ -33,7 +33,8 @@ python3 advise.py add "..."    # same advice from pasted picks, for chat
 python3 backtest.py            # replay five real seasons; validates the rule
 python3 validate.py            # does the regression signal actually predict?
 python3 season_value.py        # draft vs waiver wire: where the value actually is
-python3 -m unittest test_toolkit   # 47 tests; run before draft day
+python3 audit.py               # data sanity check — run this the morning of
+python3 -m unittest test_toolkit   # 55 tests; run before draft day
 ```
 
 Re-run `fetch_data.py rankings && python3 build_projections.py` the morning of the
@@ -49,7 +50,8 @@ git clone -b claude/fantasy-football-draft-co0mnh <this repo> ff && cd ff/fantas
 
 python3 fetch_data.py            # ~37 MB, one minute
 python3 build_projections.py     # rebuilds the board on today's consensus
-python3 -m unittest test_toolkit  # 36 tests, ~1 second — confirms nothing rotted
+python3 -m unittest test_toolkit  # 55 tests, ~6 seconds — confirms nothing rotted
+python3 audit.py                 # checks the data, not the code
 
 python3 draft_day.py             # leave this open beside the Yahoo draft window
 ```
@@ -213,6 +215,7 @@ against when it is.
 | `cheatsheet.py` | Builds the printable one-page cheat sheet from the live board. |
 | `draft_day.py` | Live draft assistant. |
 | `advise.py` | Chat front end: paste picks in order, get the recommendation. |
+| `audit.py` | Pre-draft data checks: duplicates, keepers, staleness, stale state. |
 | `backtest.py` | Replays 2021-2025 with no lookahead and scores on real results. |
 | `validate.py` | Tests the points-over-expected claim against four seasons. |
 | `season_value.py` | Measures the waiver wire against the draft across five seasons. |

@@ -20,7 +20,14 @@ import sys
 from collections import defaultdict
 
 from engine import Player, build_board, load_league, load_players, snake_picks
-from opponent import POS_CAP, RunTracker, choose, norm_pos, starter_needs
+from opponent import (
+    POS_CAP,
+    RunTracker,
+    choose,
+    norm_pos,
+    starter_needs,
+    value_weight,
+)
 
 
 def _cheap_survival(pool, horizon):
@@ -76,8 +83,7 @@ def _wait_cost_pick(pool, roster_counts, round_no, league, rng, horizon=0):
         if roster_counts.get(pos, 0) >= POS_CAP.get(pos, 8):
             continue
         cost = p.vorp - exp_next.get(pos, 0.0)
-        weight = 1.0 if (need.get(pos, 0) > 0 or need.get("FLEX", 0) > 0) else 0.35
-        score = cost * weight
+        score = cost * value_weight(pos, need, league)
         if score > best_score:
             best, best_score = p, score
     return best or max(pool, key=lambda p: p.vorp)

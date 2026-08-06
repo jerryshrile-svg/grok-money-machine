@@ -26,6 +26,7 @@ import sys
 
 import draft_day
 from engine import HERE, build_board, load_league, load_players
+from opponent import value_weight
 
 STATE = os.path.join(HERE, "data", "live_draft.json")
 
@@ -204,7 +205,7 @@ def _top_choice(draft):
                     key=lambda q: q.adp, default=None,
                 )
             continue
-        weight = 1.0 if (need.get(pos, 0) > 0 or need.get("FLEX", 0) > 0) else 0.35
+        weight = value_weight(pos, need, draft.league)
         score = (p.vorp - exp_next.get(pos, 0.0)) * weight
         if score > best_score:
             best, best_score = p, score

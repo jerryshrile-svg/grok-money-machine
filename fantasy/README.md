@@ -35,7 +35,7 @@ python3 validate.py            # does the regression signal actually predict?
 python3 season_value.py        # draft vs waiver wire: where the value actually is
 python3 waiver_signal.py       # does opportunity beat points on the wire? (yes)
 python3 audit.py               # data sanity check — run this the morning of
-python3 -m unittest test_toolkit   # 55 tests; run before draft day
+python3 -m unittest test_toolkit   # invariant tests; run before draft day
 python3 verify.py              # re-measures every claim the docs make
 python3 verify.py --full       # ...including the backtest (several minutes)
 ```

@@ -56,7 +56,26 @@ def run(cmd, label):
 
 
 def check_tests():
-    return run(["-m", "unittest", "test_toolkit"], "code: 55 invariant tests")
+    """Run the invariant tests, reporting the count they actually ran.
+
+    The count was hardcoded at 55 and was 59 within a day. A verifier that
+    states a stale number about itself has no standing to check anyone else's.
+    """
+    proc = subprocess.run(
+        [sys.executable, "-m", "unittest", "test_toolkit"],
+        cwd=HERE, capture_output=True, text=True,
+    )
+    text = proc.stdout + proc.stderr
+    count = ""
+    for line in text.split("\n"):
+        if line.startswith("Ran ") and " test" in line:
+            count = line.split()[1]
+            break
+    label = f"code: {count or '?'} invariant tests"
+    if proc.returncode == 0:
+        return label, True, ""
+    tail = [ln for ln in text.strip().split("\n") if ln]
+    return label, False, tail[-1] if tail else "tests failed"
 
 
 def check_audit():

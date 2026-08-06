@@ -21,11 +21,13 @@ strategy drafts K and DEF in the last two rounds, so the omission is uniform.
     python3 backtest.py            # all seasons, all strategies
     python3 backtest.py 2024       # one season
     python3 backtest.py 2024 40    # one season, 40 drafts per strategy
+    python3 backtest.py all 800    # every season, 800 drafts per strategy
 """
 
 from __future__ import annotations
 
 import csv
+import math
 import os
 import random
 import sys
@@ -171,22 +173,38 @@ def match_rate(board, actuals) -> float:
 
 
 def run_season(season: int, league: dict, n: int, seed: int = 99):
+    """Score every strategy on the same n drafts.
+
+    Draft i uses the same seed for every strategy, so all of them face the same
+    opponent behaviour and the same board state. That pairing is what makes the
+    comparison sharp: the noise from one lucky draft hits every strategy equally
+    and cancels in the difference, instead of being mistaken for an edge.
+    """
     board = season_board(season, league)
     actuals = weekly_actuals(season, league["scoring"])
     results = {}
     for label, strat in STRATEGIES.items():
-        rng = random.Random(seed)
         totals = []
-        for _ in range(n):
+        for i in range(n):
+            rng = random.Random(seed * 100_003 + i)
             roster = sim.run_draft(board, league, strat, rng, keeper_count=0)
             totals.append(score_roster(roster, actuals, league))
-        totals.sort()
-        results[label] = {
-            "mean": sum(totals) / len(totals),
-            "p10": totals[int(0.10 * len(totals))],
-            "p90": totals[int(0.90 * len(totals))],
-        }
+        results[label] = totals
     return results, match_rate(board, actuals)
+
+
+def _mean(xs):
+    return sum(xs) / len(xs)
+
+
+def _stderr(xs):
+    """Standard error of the mean — how much this estimate would wobble."""
+    n = len(xs)
+    if n < 2:
+        return 0.0
+    mu = _mean(xs)
+    var = sum((x - mu) ** 2 for x in xs) / (n - 1)
+    return math.sqrt(var / n)
 
 
 def main() -> int:
@@ -195,30 +213,49 @@ def main() -> int:
     league = dict(league, keepers=[], opponent_keepers={"known": [], "unknown_count": 0})
 
     args = sys.argv[1:]
-    seasons = [int(args[0])] if args and args[0].isdigit() else list(TEST_SEASONS)
+    # A season number, or anything else ("all") to keep every season while still
+    # setting the sample size. A bare "0" used to parse as a season and crash.
+    if args and args[0].isdigit() and int(args[0]) in TEST_SEASONS:
+        seasons = [int(args[0])]
+    else:
+        seasons = list(TEST_SEASONS)
     n = int(args[1]) if len(args) > 1 else 40
 
     print(f"Backtest — {n} drafts per strategy per season, scored on real results.")
     print("Points are the seven skill starting slots over weeks 1-17.\n")
 
-    totals = defaultdict(list)
+    per_season = defaultdict(list)   # strategy -> per-season mean difference
+    pooled = defaultdict(list)       # strategy -> every paired difference
     for season in seasons:
         res, mr = run_season(season, league, n)
-        base = res["Consensus list"]["mean"]
+        base = res["Consensus list"]
         print(f"--- {season} --- (name match {mr:.0%})")
-        print(f"{'STRATEGY':<24} {'ACTUAL PTS':>11} {'vs CONSENSUS':>13}")
-        for label, r in sorted(res.items(), key=lambda kv: -kv[1]["mean"]):
-            totals[label].append(r["mean"] - base)
-            print(f"{label:<24} {r['mean']:>11.0f} {r['mean'] - base:>+13.0f}")
+        print(f"{'STRATEGY':<24} {'ACTUAL PTS':>11} {'vs CONSENSUS':>20}")
+        ordered = sorted(res.items(), key=lambda kv: -_mean(kv[1]))
+        for label, totals in ordered:
+            diffs = [a - b for a, b in zip(totals, base)]
+            per_season[label].append(_mean(diffs))
+            pooled[label].extend(diffs)
+            se = _stderr(diffs)
+            print(f"{label:<24} {_mean(totals):>11.0f} "
+                  f"{_mean(diffs):>+13.0f} ± {se:>4.0f}")
         print()
 
     if len(seasons) > 1:
         print("=== Across all seasons, points above simply drafting the list ===")
-        print(f"{'STRATEGY':<24} {'MEAN':>8} {'BEST':>8} {'WORST':>8} {'WINS':>6}")
-        for label, diffs in sorted(totals.items(), key=lambda kv: -sum(kv[1])):
+        print(f"{'STRATEGY':<24} {'MEAN':>8} {'± SE':>6} {'WINS':>7}  VERDICT")
+        for label, diffs in sorted(per_season.items(), key=lambda kv: -sum(kv[1])):
             wins = sum(1 for d in diffs if d > 0)
-            print(f"{label:<24} {sum(diffs)/len(diffs):>+8.0f} {max(diffs):>+8.0f} "
-                  f"{min(diffs):>+8.0f} {wins:>4}/{len(diffs)}")
+            mu, se = _mean(pooled[label]), _stderr(pooled[label])
+            if label == "Consensus list":
+                verdict = "baseline"
+            elif abs(mu) < 2 * se:
+                verdict = "inside the noise"
+            else:
+                verdict = "real" if mu > 0 else "real, and bad"
+            print(f"{label:<24} {mu:>+8.0f} {se:>6.0f} {wins:>4}/{len(diffs)}  {verdict}")
+        print("\nSE is the standard error of the paired difference. A gap smaller")
+        print("than about two standard errors is not distinguishable from noise.")
     return 0
 
 

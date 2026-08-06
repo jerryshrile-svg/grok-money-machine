@@ -547,3 +547,36 @@ that gap is unreachable, not merely unclaimed.
 two levers are close to equal: the draft is worth +30 a season, and the best
 waiver rule is worth +28. They are comparable, and you want both. What is true is
 that the draft's edge is already captured and the waiver edge is not.
+
+---
+
+## 14. The loop, and the step that was missing
+
+The working method here has been: establish the current state, establish the
+desired state, identify the gaps, point at a gap, and repeat. That part was never
+the problem.
+
+**The missing step was a verifier**, and every failure in this project traces to
+its absence rather than to carelessness:
+
+| What went wrong | What was missing |
+|---|---|
+| A headline figure quoted for days | error bars — noise read as signal |
+| Backup quarterbacks "obviously" discounted | a measurement taken before shipping |
+| The board's own value ordering losing to the consensus | a backtest, which did not exist yet |
+| A keeper still draftable by opponents | a test on the invariant |
+| The waiver model dropping its only quarterback | a legality check |
+| Stale draft state holding 112 practice picks | a data audit |
+
+Each was caught the moment a verifier existed, and none were caught by attention.
+That is the lesson worth keeping: verification has to be an artefact that runs,
+not a habit that is remembered.
+
+`verify.py` is that artefact. It re-measures every claim this document makes and
+fails if any of them has stopped being true, and it prints the open gaps every
+time it runs so they cannot quietly fall off the list. **A claim that cannot be
+re-measured does not belong in this playbook.**
+
+The rule that follows: any change to the board, the weighting or the opponent
+model gets run through `verify.py --full` before it is believed — including
+changes that seem obviously correct, and especially those.

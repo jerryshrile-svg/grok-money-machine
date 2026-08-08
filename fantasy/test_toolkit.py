@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import random
+import tempfile
 import unittest
 from collections import defaultdict
 
@@ -64,6 +65,29 @@ def make_board(n_per_pos=40):
     # The keeper the league config refers to.
     players.append(Player(name="Keeper Back", pos="RB", team="XX", adp=2.0, points=310.0))
     return engine.build_board(LEAGUE, players)
+
+
+REAL_STATE_PATH = draft_day.STATE_PATH
+
+
+class StateIsolated(unittest.TestCase):
+    """Base for tests that touch a Draft, which saves to disk when it records.
+
+    Anything holding a Draft has to redirect the state file *before* building
+    it, and put it back afterwards. Getting that wrong wrote a phantom pick-1
+    for a fake player into the real draft_state.json every time the suite ran —
+    and the instructions say to run the suite the morning of the draft, so the
+    live assistant would then resume a draft that never happened, with every
+    pick number shifted by one.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        draft_day.STATE_PATH = os.path.join(self._tmp.name, "state.json")
+
+    def tearDown(self):
+        draft_day.STATE_PATH = REAL_STATE_PATH
+        self._tmp.cleanup()
 
 
 class SnakeMath(unittest.TestCase):
@@ -279,17 +303,19 @@ class FullDraftIntegrity(unittest.TestCase):
             self.assertEqual(len(mine), LEAGUE["rounds"], f"count={count}")
 
 
-class LiveAssistant(unittest.TestCase):
+class LiveAssistant(StateIsolated):
     def setUp(self):
+        super().setUp()
         self.board = make_board()
         self.d = draft_day.Draft(LEAGUE, self.board)
-        draft_day.STATE_PATH = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), ".test_state.json"
-        )
 
-    def tearDown(self):
-        if os.path.exists(draft_day.STATE_PATH):
-            os.remove(draft_day.STATE_PATH)
+    def test_state_file_stays_out_of_the_real_one(self):
+        """Recording a pick must never touch the live draft's state file."""
+        self.assertNotEqual(draft_day.STATE_PATH, REAL_STATE_PATH)
+        before = os.path.exists(REAL_STATE_PATH)
+        self.d.record(self.d.available[0], mine=False)
+        self.assertTrue(os.path.exists(draft_day.STATE_PATH))
+        self.assertEqual(os.path.exists(REAL_STATE_PATH), before)
 
     def test_keeper_never_appears_available(self):
         self.assertNotIn("Keeper Back", {p.name for p in self.d.available})
@@ -533,10 +559,11 @@ class WaiverModel(unittest.TestCase):
         self.assertGreaterEqual(best, base)
 
 
-class AdviseFrontEnd(unittest.TestCase):
+class AdviseFrontEnd(StateIsolated):
     """The chat front end must never guess, and must never lose picks."""
 
     def setUp(self):
+        super().setUp()
         import advise
 
         self.advise = advise
@@ -573,6 +600,36 @@ class AdviseFrontEnd(unittest.TestCase):
         player, options = self.advise.resolve(self.d, "Zzzz Nobody")
         self.assertIsNone(player)
         self.assertEqual(options, [])
+
+
+class StaleStateAudit(unittest.TestCase):
+    """The audit has to cover both front ends, not just the one it was written for."""
+
+    def test_covers_both_state_files(self):
+        import audit
+
+        names = {label for _p, label, _how in audit.STATE_FILES}
+        self.assertIn("draft_state.json", names)
+        self.assertIn("data/live_draft.json", names)
+
+    def test_flags_a_state_file_that_holds_picks(self):
+        import audit
+        import json
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "state.json")
+            with open(path, "w") as fh:
+                json.dump({"picks": [{"pick": 1, "name": "Somebody"}]}, fh)
+            original = audit.STATE_FILES
+            audit.STATE_FILES = ((path, "state.json", "delete it"),)
+            try:
+                problems, notes = [], []
+                audit.check_live_state(LEAGUE, problems, notes)
+            finally:
+                audit.STATE_FILES = original
+        self.assertEqual(notes, [])
+        self.assertTrue(problems)
+        self.assertIn("Somebody", problems[0])
 
 
 class Verifier(unittest.TestCase):

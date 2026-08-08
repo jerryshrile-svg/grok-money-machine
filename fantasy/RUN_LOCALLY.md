@@ -82,6 +82,9 @@ look at the table, then `rm draft_state.json` (Windows: `del draft_state.json`) 
 wipe it. The point is that the commands stop being something you think about while
 the draft clock is running.
 
+If you forget to wipe it, `audit.py` will tell you — it names any leftover state
+file and how many picks it holds. Run it before the real draft starts.
+
 ## If something goes wrong
 
 | Symptom | Fix |

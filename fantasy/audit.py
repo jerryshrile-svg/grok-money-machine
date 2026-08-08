@@ -137,20 +137,37 @@ def check_draft_slot(league, problems, notes):
                  f"{picks[2]} ... {picks[-1]}")
 
 
+# Both front ends persist, and either one left over from a practice run would
+# poison a real draft — the terminal assistant resumes it silently and every
+# pick number after it is shifted. Checking only one of the two missed the file
+# the draft-day instructions actually tell you to use.
+STATE_FILES = (
+    (os.path.join(DATA, "live_draft.json"), "data/live_draft.json",
+     "python3 advise.py reset"),
+    (os.path.join(HERE, "draft_state.json"), "draft_state.json",
+     "delete the file"),
+)
+
+
 def check_live_state(league, problems, notes):
-    """A stale live_draft.json from a practice run would poison a real draft."""
-    path = os.path.join(DATA, "live_draft.json")
-    if not os.path.exists(path):
-        notes.append("no draft in progress")
-        return
+    """A stale draft state from a practice run would poison a real draft."""
     import json
 
-    picks = json.load(open(path)).get("picks", [])
-    if picks:
+    found = False
+    for path, label, how in STATE_FILES:
+        if not os.path.exists(path):
+            continue
+        picks = json.load(open(path)).get("picks", [])
+        if not picks:
+            continue
+        found = True
         problems.append(
-            f"data/live_draft.json already holds {len(picks)} picks. If that is a "
-            "practice run, clear it: python3 advise.py reset"
+            f"{label} already holds {len(picks)} picks "
+            f"(first: {picks[0].get('name', '?')}). If that is a practice run "
+            f"or a test, clear it: {how}"
         )
+    if not found:
+        notes.append("no draft in progress")
 
 
 def main() -> int:

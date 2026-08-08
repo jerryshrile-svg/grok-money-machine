@@ -27,6 +27,13 @@ import sys
 
 HERE = __file__.rsplit("/", 1)[0]
 
+# A check can pass, fail, or be unmeasurable here — the last one when the back
+# seasons it replays were never downloaded. Keeping SKIP distinct from True
+# matters: a verifier that quietly turns "I couldn't check" into "fine" is the
+# exact failure this file exists to prevent. It is also not a failure, because
+# nothing is claimed to be broken. It is reported, loudly, as neither.
+SKIP = "skip"
+
 # Gaps between where this is and where it needs to be. Kept here rather than in
 # prose so it is read every time the verifier runs, instead of once.
 OPEN_GAPS = [
@@ -84,19 +91,20 @@ def check_audit():
 
 def check_regression_claim():
     """The fade signal should be markedly more reliable than the buy signal."""
+    label = "claim: hot players regress harder than cold ones recover"
     proc = subprocess.run(
         [sys.executable, "validate.py"], cwd=HERE, capture_output=True, text=True
     )
+    text = proc.stdout + proc.stderr
+    if "missing expected-points data" in text:
+        return label, SKIP, "run 'python3 fetch_data.py history' to measure this"
     if proc.returncode != 0:
-        return "claim: hot players regress harder than cold ones recover", False, \
-               "validate.py failed"
-    text = proc.stdout
+        return label, False, "validate.py failed"
     try:
         hot = int(text.split("gave back")[1].split("%")[0])
         cold = int(text.split("recovered only")[1].split("%")[0])
     except (IndexError, ValueError):
-        return "claim: hot players regress harder than cold ones recover", False, \
-               "could not parse validate.py output"
+        return label, False, "could not parse validate.py output"
     ok = hot > cold * 1.5
     return ("claim: hot regress harder than cold recover "
             f"({hot}% vs {cold}%)", ok, "" if ok else "asymmetry no longer holds")
@@ -109,6 +117,8 @@ def check_backtest_claim(n=120):
         cwd=HERE, capture_output=True, text=True,
     )
     label = "claim: wait-cost beats the consensus list"
+    if "missing back-season data" in (proc.stdout + proc.stderr):
+        return label, SKIP, "run 'python3 fetch_data.py history' to measure this"
     if proc.returncode != 0:
         return label, False, "backtest failed to run"
     parsed = parse_backtest_summary(proc.stdout)
@@ -158,12 +168,13 @@ def main() -> int:
     for check in checks:
         label, ok, detail = check()
         results.append((label, ok, detail))
-        mark = " ok " if ok else "FAIL"
+        mark = {True: " ok ", SKIP: "skip"}.get(ok, "FAIL")
         print(f"  [{mark}] {label}")
         if detail:
             print(f"         {detail}")
 
-    failed = [r for r in results if not r[1]]
+    failed = [r for r in results if r[1] is not True and r[1] != SKIP]
+    skipped = [r for r in results if r[1] == SKIP]
 
     print("\nOpen gaps between here and winning the league:")
     for title, why in OPEN_GAPS:
@@ -173,6 +184,10 @@ def main() -> int:
         print(f"\n{len(failed)} check(s) failed. The documentation currently "
               "claims something that isn't true.")
         return 1
+    if skipped:
+        print(f"\n{len(skipped)} claim(s) could not be re-measured here — see "
+              "above. Everything that could be checked is true.")
+        return 0
     print("\nEverything the documentation claims is currently measurable and true.")
     return 0
 

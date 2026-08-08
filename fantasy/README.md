@@ -3,7 +3,8 @@
 Draft tooling calibrated to one specific league: 8 teams, 0.5 PPR, snake, pick 6,
 Bijan Robinson kept in round 1. Pure Python stdlib — no install step, no API keys.
 
-See [PLAYBOOK.md](PLAYBOOK.md) for the strategy reasoning and the build roadmap.
+See [RUN_LOCALLY.md](RUN_LOCALLY.md) to get it running on your own machine, and
+[PLAYBOOK.md](PLAYBOOK.md) for the strategy reasoning and the build roadmap.
 
 ## Quick start
 
@@ -11,6 +12,7 @@ See [PLAYBOOK.md](PLAYBOOK.md) for the strategy reasoning and the build roadmap.
 cd fantasy
 
 python3 fetch_data.py          # download free public data (~37 MB, one command)
+python3 fetch_data.py history  # optional: back seasons for backtest/validate
 python3 build_projections.py   # -> data/projections.csv in your scoring
 
 python3 engine.py              # value-based draft board + tiers + your picks

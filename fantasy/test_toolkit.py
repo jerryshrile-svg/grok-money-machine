@@ -678,6 +678,27 @@ class Verifier(unittest.TestCase):
         mean, se = self.verify.parse_backtest_summary(dead)
         self.assertFalse(mean > 2 * se)
 
+    def test_skip_is_not_a_pass(self):
+        """An unmeasurable claim must not read as a verified one.
+
+        On a machine without the back seasons downloaded, both measurement
+        claims are unrunnable. Folding that into True would have the verifier
+        announce everything is true on a box that checked almost nothing.
+        """
+        self.assertIsNot(self.verify.SKIP, True)
+        self.assertFalse(self.verify.SKIP is True)
+        # main() splits on identity, so a truthy sentinel must still not count
+        # as a pass anywhere it is compared.
+        self.assertNotEqual(self.verify.SKIP, True)
+
+    def test_backtest_reports_missing_history_instead_of_crashing(self):
+        """The phrase verify.py keys on has to be the one backtest.py prints."""
+        import backtest
+        import inspect
+
+        src = inspect.getsource(backtest.main)
+        self.assertIn("missing back-season data", src)
+
 
 class RealDataSmoke(unittest.TestCase):
     """Only runs when projections have been built."""

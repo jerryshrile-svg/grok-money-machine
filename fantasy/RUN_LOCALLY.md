@@ -42,9 +42,18 @@ python3 build_projections.py   # builds the board in your exact scoring
 python3 verify.py              # checks the code, the data, and every claim
 ```
 
-`verify.py` should end with *"Everything the documentation claims is currently
-measurable and true."* If it doesn't, stop and read what it says — it will name the
-thing that's wrong.
+`verify.py` will report two claims as `[skip]` — the backtest and the regression
+study replay old seasons that the default download doesn't include, because nothing
+on draft day reads them. That's fine; skipped is reported as skipped, never folded
+into a pass. If you want those measured too:
+
+```bash
+python3 fetch_data.py history   # another ~55 MB of back seasons
+python3 verify.py --full        # replays five seasons — several minutes
+```
+
+Anything marked `FAIL` is different: that means something is actually wrong, and the
+line under it names what.
 
 ## Then, on draft day
 

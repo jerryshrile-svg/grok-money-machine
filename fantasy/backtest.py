@@ -207,7 +207,29 @@ def _stderr(xs):
     return math.sqrt(var / n)
 
 
+def missing_seasons() -> list[str]:
+    """Season stat files this replay needs but that were never downloaded.
+
+    Checked up front rather than discovered as a FileNotFoundError halfway
+    through, because the fix is one command and a traceback doesn't say so.
+    """
+    needed = set()
+    for season in TEST_SEASONS:
+        needed.add(season)
+        needed.update(range(season - CURVE_LOOKBACK, season))
+    return sorted(
+        f"stats_{y}.csv" for y in needed
+        if not os.path.exists(os.path.join(HERE, "data", "raw", f"stats_{y}.csv"))
+    )
+
+
 def main() -> int:
+    gone = missing_seasons()
+    if gone:
+        print(f"missing back-season data: {', '.join(gone)}")
+        print("run 'python3 fetch_data.py history' first.")
+        return 1
+
     league = load_league()
     # Keepers are unknown historically and irrelevant to what's being tested.
     league = dict(league, keepers=[], opponent_keepers={"known": [], "unknown_count": 0})

@@ -588,3 +588,69 @@ including one that feeds it a dead edge and requires a failure.
 The rule that follows: any change to the board, the weighting or the opponent
 model gets run through `verify.py --full` before it is believed — including
 changes that seem obviously correct, and especially those.
+
+---
+
+## 15. Target rate and snap share: tested, and left out
+
+The board has never used usage. Two players ranked WR24 are worth the same
+whether one played 90% of snaps last year and the other 45%. Snap share and
+target share are collected and displayed — the `SNAP` and `TGT%` columns, the
+player card, `why <name>` during the draft — but they touch no number the
+recommendation is computed from.
+
+The defence of that was always the same sentence: *the consensus has already
+priced usage in*. Reasonable, and until now untested, which put it in exactly the
+category section 10 warns about. So it was measured.
+
+`usage.py` builds, for any season, each player's prior-year usage and how far it
+sits from what a player at his current ranking normally has behind him. The
+residual is the point — raw usage would just re-rank the board by target share,
+which is trivially wrong, because the WR1 has both the most targets and the
+highest rank. What might carry information is the gap: a player ranked WR30 whose
+snaps and targets looked like a WR12's.
+
+`usage_test.py` then drafts five real seasons with the wait-cost rule, identical
+opponents and identical seeds, changing only the board:
+
+```
+points x (1 + k x residual)
+```
+
+300 paired drafts per arm per season, three definitions of usage, k swept because
+one hand-picked strength proves nothing:
+
+```
+k          composite     target rate only    snap share only
+0.03         -12 ± 4          -13 ± 4             -4 ± 4
+0.06         -20 ± 4          -31 ± 4            -19 ± 4
+0.10         -27 ± 4          -36 ± 4            -35 ± 5
+0.15         -25 ± 4          -53 ± 4            -47 ± 5
+```
+
+Every measure, at nearly every strength, loses — and loses **monotonically with
+strength**. That dose-response is the finding. A single negative cell could be
+noise; a curve that starts at zero and falls further the harder you lean on it is
+the signal telling you the information is not there. Leave-one-season-out never
+selected a non-zero k at all, because no k was positive on any four-season
+subset.
+
+Snap share is the least harmful of the three and the most volatile: strongly
+positive in 2023 and 2024 (+30, +34), strongly negative in 2021, 2022 and 2025
+(-54, -43, -59) at k=0.06. Pooled, it still loses.
+
+**Why this is not the same as the waiver finding.** `waiver_signal.py` measured
+opportunity beating raw points by +11 ± 3 *in-season*, and that result stands.
+The two are not in conflict. In week 5 the market is genuinely stale — a back who
+just took over a backfield is still ranked where he was in August. In August
+itself the panel has had a full offseason to look at the same snap counts, so the
+information is already inside the ranking, and adding it again double-counts.
+Usage is a strong in-season signal and a spent preseason one.
+
+The practical read for draft day is unchanged: **use the `SNAP` and `TGT%`
+columns as a tiebreaker between players you already rate similarly, not as a
+reason to move someone up or down the board.** The board's ordering was measured
+against the alternative and won.
+
+Re-measure any time with `python3 usage_test.py 300 --loso`, or
+`--measure target` / `--measure snap` for the single-signal versions.

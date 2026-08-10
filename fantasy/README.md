@@ -34,6 +34,8 @@ python3 advise.py add "..."    # same advice from pasted picks, for chat
 
 python3 backtest.py            # replay five real seasons; validates the rule
 python3 validate.py            # does the regression signal actually predict?
+python3 usage.py 2025          # prior-year usage vs consensus rank
+python3 usage_test.py 300      # does usage belong in the board? (measured: no)
 python3 season_value.py        # draft vs waiver wire: where the value actually is
 python3 waiver_signal.py       # does opportunity beat points on the wire? (yes)
 python3 audit.py               # data sanity check — run this the morning of
@@ -125,7 +127,11 @@ happened and you get **points over expected (POE)**:
   them for it, that's the cheapest edge on the board.
 
 Snap share and target share sit next to it, because POE only matters when the
-opportunity behind it is real. Justin Jefferson in 2025 is the clean example: 94%
+opportunity behind it is real. They are shown, not scored — feeding prior-year
+usage into the board was measured across five seasons and made it worse at every
+strength and under all three definitions of usage (`usage_test.py`; PLAYBOOK
+section 15). Treat those columns as a tiebreaker between players you already rate
+similarly, not as a reason to move someone. Justin Jefferson in 2025 is the clean example: 94%
 of snaps, a 30.7% target share, and **2 touchdowns against 8.6 expected** — a WR25
 finish built on a WR6 workload.
 
@@ -223,6 +229,8 @@ against when it is.
 | `verify.py` | The verifier: re-measures every documented claim, lists open gaps. |
 | `backtest.py` | Replays 2021-2025 with no lookahead and scores on real results. |
 | `validate.py` | Tests the points-over-expected claim against four seasons. |
+| `usage.py` | Prior-season snap, target and carry share vs consensus rank. |
+| `usage_test.py` | Whether usage belongs in the board. Measured: it doesn't. |
 | `season_value.py` | Measures the waiver wire against the draft across five seasons. |
 | `waiver_signal.py` | Tests opportunity vs points as the in-season waiver signal. |
 | `test_toolkit.py` | Invariants that would otherwise break silently mid-draft. |

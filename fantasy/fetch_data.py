@@ -39,6 +39,9 @@ SEASONS = (2023, 2024, 2025)
 # every season it compares consecutively.
 HISTORY_STATS = (2018, 2019, 2020, 2021, 2022)
 HISTORY_EP = (2022, 2023, 2024)
+# usage_test.py judges each replayed season on the one before it, so it needs
+# snap counts back to 2020.
+HISTORY_SNAPS = (2020, 2021, 2022, 2023, 2024)
 FFOPP = ("https://github.com/ffverse/ffopportunity/releases/download/"
          "latest-data/ep_weekly_{y}.csv")
 
@@ -68,6 +71,9 @@ SOURCES: dict[str, list[tuple[str, str]]] = {
         for y in HISTORY_STATS
     ] + [
         (FFOPP.format(y=y), f"expected_points_{y}.csv") for y in HISTORY_EP
+    ] + [
+        (f"{NFLVERSE}/snap_counts/snap_counts_{y}.csv", f"snap_counts_{y}.csv")
+        for y in HISTORY_SNAPS
     ],
 }
 

@@ -31,7 +31,9 @@ LEAGUE = {
     "roster": {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "FLEX": 1, "K": 1, "DEF": 1, "BN": 5},
     "flex_eligible": ["RB", "WR", "TE"],
     "scoring": {
-        "pass_yd": 0.04, "pass_td": 4.0, "pass_int": -2.0,
+        # Matches league.json so build_board's scoring check stays quiet during
+        # tests. A warning that always fires is a warning nobody reads.
+        "pass_yd": 0.04, "pass_td": 4.0, "pass_int": -1.0,
         "rush_yd": 0.1, "rush_td": 6.0,
         "rec": 0.5, "rec_yd": 0.1, "rec_td": 6.0,
         "fumble_lost": -2.0, "two_pt": 2.0,
@@ -630,6 +632,95 @@ class StaleStateAudit(unittest.TestCase):
         self.assertEqual(notes, [])
         self.assertTrue(problems)
         self.assertIn("Somebody", problems[0])
+
+
+class UsageResiduals(unittest.TestCase):
+    """The usage experiment has to measure usage, not an artefact of its own fit."""
+
+    def setUp(self):
+        import usage
+
+        self.usage = usage
+        self.addCleanup(usage.set_measure, "composite")
+
+    def _board(self, usage_by_rank):
+        """A board where positional rank is known and usage is whatever we say."""
+        players = [
+            Player(name=f"WR Player {i+1}", pos="WR", team="XX",
+                   adp=float(i + 1), points=300.0 - i)
+            for i in range(len(usage_by_rank))
+        ]
+        prior = {
+            norm_name(p.name): {"pos": "WR", "games": 17,
+                                "snap": u, "tgt": u, "carry": 0.0}
+            for p, u in zip(players, usage_by_rank)
+        }
+        return engine.build_board(LEAGUE, players), prior
+
+    def test_usage_matching_rank_gives_no_adjustment(self):
+        """If usage order equals consensus order, there is nothing to add."""
+        n = 20
+        board, prior = self._board([0.9 - 0.02 * i for i in range(n)])
+        resid = self.usage.residuals(board, prior)
+        self.assertTrue(resid)
+        for name, r in resid.items():
+            self.assertAlmostEqual(r, 0.0, places=6, msg=name)
+
+    def test_elite_player_with_elite_usage_is_not_penalised(self):
+        """The first attempt fitted a curve and charged the WR1 for saturating.
+
+        Chase came out at -2.64 standard deviations on 92% of snaps and a 27%
+        target share, which said more about the curve than about Chase.
+        """
+        n = 20
+        usages = [0.9 - 0.02 * i for i in range(n)]
+        board, prior = self._board(usages)
+        resid = self.usage.residuals(board, prior)
+        top = min(board, key=lambda p: p.adp)
+        self.assertGreaterEqual(resid[norm_name(top.name)], -0.5)
+
+    def test_underused_high_pick_goes_negative(self):
+        n = 20
+        usages = [0.9 - 0.02 * i for i in range(n)]
+        usages[1] = 0.10          # ranked WR2, used like the last man on the list
+        board, prior = self._board(usages)
+        resid = self.usage.residuals(board, prior)
+        self.assertLess(resid[norm_name("WR Player 2")], -0.5)
+
+    def test_residuals_are_clipped(self):
+        n = 20
+        usages = [0.5] * n
+        usages[-1] = 99.0         # one absurd outlier must not swamp the board
+        board, prior = self._board(usages)
+        for r in self.usage.residuals(board, prior).values():
+            self.assertLessEqual(abs(r), self.usage.CLIP + 1e-9)
+
+    def test_players_without_a_prior_season_get_nothing(self):
+        """Rookies have no usage history; inventing one is worse than omitting it."""
+        n = 20
+        board, prior = self._board([0.9 - 0.02 * i for i in range(n)])
+        prior.pop(norm_name("WR Player 5"))
+        resid = self.usage.residuals(board, prior)
+        self.assertNotIn(norm_name("WR Player 5"), resid)
+
+    def test_measures_are_distinct_and_switchable(self):
+        self.usage.set_measure("target")
+        self.assertEqual(self.usage.WEIGHTS["WR"]["tgt"], 1.0)
+        self.assertEqual(self.usage.WEIGHTS["WR"]["snap"], 0.0)
+        self.usage.set_measure("snap")
+        self.assertEqual(self.usage.WEIGHTS["WR"]["snap"], 1.0)
+
+    def test_quarterbacks_are_left_alone(self):
+        for name in self.usage.MEASURES:
+            self.assertIsNone(self.usage.MEASURES[name]["QB"], name)
+
+    def test_zero_strength_returns_the_original_board(self):
+        """k=0 must be the untouched board, or the baseline arm isn't a baseline."""
+        import usage_test
+
+        board = make_board()
+        same = usage_test.adjusted_board(2025, LEAGUE, board, 0.0)
+        self.assertIs(same, board)
 
 
 class Verifier(unittest.TestCase):

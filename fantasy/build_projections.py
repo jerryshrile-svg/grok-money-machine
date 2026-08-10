@@ -39,6 +39,12 @@ RAW = os.path.join(HERE, "data", "raw")
 OUT = os.path.join(HERE, "data", "projections.csv")
 META = os.path.join(HERE, "data", "projections.meta.json")
 
+
+def _today() -> str:
+    from datetime import date
+
+    return date.today().isoformat()
+
 SEASONS = (2023, 2024, 2025)
 SKILL = ("QB", "RB", "WR", "TE")
 
@@ -245,6 +251,17 @@ def main() -> int:
     with open(META, "w") as fh:
         json.dump({"scoring": scoring, "scrape_date": rows[0].get("scrape_date", "")},
                   fh, indent=2)
+
+    # Keep a dated copy of every board ever built. It costs 30 KB and it is the
+    # only way to answer "what changed since the list my leaguemates printed?",
+    # which is where a stale opponent is actually beatable.
+    snap_dir = os.path.join(HERE, "data", "snapshots")
+    os.makedirs(snap_dir, exist_ok=True)
+    stamp = rows[0].get("scrape_date") or _today()
+    with open(os.path.join(snap_dir, f"board_{stamp}.csv"), "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(out_rows[0].keys()))
+        w.writeheader()
+        w.writerows(out_rows)
 
     scrape = rows[0].get("scrape_date", "?")
     counts: dict[str, int] = defaultdict(int)

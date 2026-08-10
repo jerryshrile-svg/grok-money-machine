@@ -36,6 +36,8 @@ python3 backtest.py            # replay five real seasons; validates the rule
 python3 validate.py            # does the regression signal actually predict?
 python3 usage.py 2025          # prior-year usage vs consensus rank
 python3 usage_test.py 300      # does usage belong in the board? (measured: no)
+python3 objective.py 300       # is total points the right target? (measured: yes)
+python3 movers.py              # what moved since your leaguemates printed their list
 python3 season_value.py        # draft vs waiver wire: where the value actually is
 python3 waiver_signal.py       # does opportunity beat points on the wire? (yes)
 python3 audit.py               # data sanity check — run this the morning of
@@ -127,13 +129,15 @@ happened and you get **points over expected (POE)**:
   them for it, that's the cheapest edge on the board.
 
 Snap share and target share sit next to it, because POE only matters when the
-opportunity behind it is real. They are shown, not scored — feeding prior-year
-usage into the board was measured across five seasons and made it worse at every
-strength and under all three definitions of usage (`usage_test.py`; PLAYBOOK
-section 15). Treat those columns as a tiebreaker between players you already rate
-similarly, not as a reason to move someone. Justin Jefferson in 2025 is the clean example: 94%
+opportunity behind it is real. Justin Jefferson in 2025 is the clean example: 94%
 of snaps, a 30.7% target share, and **2 touchdowns against 8.6 expected** — a WR25
 finish built on a WR6 workload.
+
+Those two columns are shown, not scored. Feeding prior-year usage into the board
+was measured across five seasons and made it worse at every strength, under all
+three definitions of usage (`usage_test.py`; PLAYBOOK section 15). Treat them as a
+tiebreaker between players you already rate similarly, not as a reason to move
+someone up or down.
 
 Rookies and players who missed 2025 show as `new`; there is no usage history to
 read and the consensus rank is the only signal.
@@ -231,6 +235,8 @@ against when it is.
 | `validate.py` | Tests the points-over-expected claim against four seasons. |
 | `usage.py` | Prior-season snap, target and carry share vs consensus rank. |
 | `usage_test.py` | Whether usage belongs in the board. Measured: it doesn't. |
+| `objective.py` | Whole-season points vs playoff weeks, and upside vs expectation. |
+| `movers.py` | Board movement between two dated snapshots — the stale-list edge. |
 | `season_value.py` | Measures the waiver wire against the draft across five seasons. |
 | `waiver_signal.py` | Tests opportunity vs points as the in-season waiver signal. |
 | `test_toolkit.py` | Invariants that would otherwise break silently mid-draft. |

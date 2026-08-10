@@ -654,3 +654,115 @@ against the alternative and won.
 
 Re-measure any time with `python3 usage_test.py 300 --loso`, or
 `--measure target` / `--measure snap` for the single-signal versions.
+
+---
+
+## 16. Is total points even the right target?
+
+Every measurement in sections 9 through 15 scores a roster on its season total.
+That is a proxy, and in this league a questionable one. **Six of eight teams make
+the playoffs** — you have to be bad, not merely unlucky, to miss — so points past
+the qualifying threshold buy very little, and the year is decided in weeks 15, 16
+and 17. If the proxy was wrong, everything measured on it was measuring the wrong
+thing.
+
+`objective.py` re-scores the same paired drafts two ways.
+
+**The strategy ranking holds.** Wait-cost wins on both objectives:
+
+```
+                        whole season      weeks 15-17 only
+Wait-cost (live tool)     +27 ± 3.8          +4.9 ± 1.2     real both ways
+RB heavy                  -19 ± 4.3          +2.4 ± 1.4     bad, then noise
+Zero RB                    -0 ± 4.8          +0.8 ± 1.6     noise both ways
+```
+
++27 across seventeen weeks and +4.9 across three is the same edge per week, about
+1.6 points. The rule has no special playoff-week magic — and, more usefully, it
+loses nothing there either. **The proxy was fine.** That is a negative result, and
+it is worth more than it looks: it retires a worry that would otherwise sit under
+every number in this document.
+
+**Drafting for upside is worse, including in the playoffs.** The intuitive
+counter-argument is that when qualifying is nearly free you should buy variance —
+you need three good weeks, not sixteen average ones. Tested by rebuilding the
+board on a blend of expected points and the panel's best case:
+
+```
+ceiling weight     whole season      weeks 15-17
+0.25                 +4 ± 4.4          -3.3 ± 1.4
+0.50                -21 ± 4.5          -8.4 ± 1.5
+```
+
+Worse in the playoff weeks specifically, which is where the theory said it should
+help most. Draft the expected value.
+
+**The honest limit.** Three playoff weeks scored as a points total is not the same
+as championship probability: a knockout bracket rewards beating one opponent each
+week, and that is a shape total points can't see. Testing it properly needs a
+head-to-head league simulation with seeding and a bracket. That is the one
+untested assumption left, and it is a bigger build than anything above.
+
+A fix fell out of writing this: **the replayed board had no ceiling or floor at
+all.** `season_board` never set them, so the first upside run returned differences
+of exactly ±0.0 — three arms scoring identically to the point. Any strategy
+trading on upside would have measured nothing and reported it as "no effect".
+There is now a test that the replayed board carries real spread.
+
+---
+
+## 17. The edge that comes from timing, not method
+
+Your leaguemates are drafting off something printed. A magazine from July, an
+export from last weekend, the rankings page as it looked when they last opened it.
+You re-pull the consensus on draft morning. Every player who moved in between is a
+place where the room is priced wrong and you are not.
+
+This is the only edge here that requires no model at all, and it is not small. Run
+over the same window last year — 4 July to 8 August 2025 — the top-180 board moved
+like this:
+
+```
+Quinshon Judkins   RB   79 -> 134    -55
+Dylan Sampson      RB  213 -> 169    +43
+Jonnu Smith        TE  113 -> 153    -40
+Emeka Egbuka       WR  145 -> 113    +32
+Joe Mixon          RB   55 ->  82    -27
+Rashee Rice        WR   29 ->  53    -24
+```
+
+Twenty-eight draftable players moved six places or more in five weeks. Anyone
+holding the July list paid full price for Judkins and Rice and missed Sampson and
+Egbuka entirely.
+
+`build_projections.py` now files a dated copy of every board it builds into
+`data/snapshots/`, and `movers.py` diffs two of them. Today's board is committed,
+so the comparison works from a clean clone on draft morning:
+
+```
+python3 fetch_data.py rankings && python3 build_projections.py
+python3 movers.py
+```
+
+Rising players are the ones to reach for. Falling ones are the traps — and the
+falls are usually larger and better-founded than the rises, because injuries and
+suspensions move a ranking further than optimism does.
+
+---
+
+## 18. The IR slot nobody uses
+
+The roster has an IR slot. Nothing in this toolkit reads it, and that is correct —
+it is not a drafting model input. It is a free roster spot, and it is worth saying
+out loud because most managers in an eight-team league forget it exists.
+
+A player who starts the season on IR, PUP or NFI can be drafted with your last
+bench pick and moved to IR before week 1, which gives the bench spot straight back.
+The pick costs you nothing except the marginal 14th-best bench body — who, in an
+eight-team league with hundreds of unowned players, you were going to drop for a
+waiver add in week 2 anyway.
+
+So in round 13 or 14, if Yahoo shows an injury designation on someone whose healthy
+ranking would have been sixty places higher, take him. The board can't tell you who
+that is — the consensus prices the injury into the ranking and the free data carries
+no designation — but Yahoo's own draft UI shows it, and that is enough.

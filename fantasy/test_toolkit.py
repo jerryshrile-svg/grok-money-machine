@@ -925,3 +925,94 @@ class DisambiguationCommands(StateIsolated):
                 got = self.d._disambiguate(cands, "amb")
         self.assertIsNone(got)
         self.assertIn("cancelled", buf.getvalue())
+
+
+class BoardMovement(unittest.TestCase):
+    """Comparing two dated boards is only useful if it reports real moves."""
+
+    def setUp(self):
+        import movers
+
+        self.movers = movers
+
+    def _snap(self, rows):
+        return {r["name"]: dict(r) for r in rows}
+
+    def test_reports_a_real_rise_with_the_right_sign(self):
+        old = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 90.0, "points": 100.0}])
+        new = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 60.0, "points": 130.0}])
+        moved, _arr, _gone = self.movers.compare(old, new)
+        self.assertEqual(len(moved), 1)
+        shift, _o, _n = moved[0]
+        self.assertGreater(shift, 0, "moving up the board must be positive")
+        self.assertAlmostEqual(shift, 30.0)
+
+    def test_small_churn_is_ignored(self):
+        old = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 60.0, "points": 100.0}])
+        new = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 62.0, "points": 99.0}])
+        moved, _arr, _gone = self.movers.compare(old, new)
+        self.assertEqual(moved, [])
+
+    def test_undraftable_players_are_not_news(self):
+        """A receiver going from 340 to 300 is movement, not information."""
+        old = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 340.0, "points": 10.0}])
+        new = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 300.0, "points": 12.0}])
+        moved, _arr, _gone = self.movers.compare(old, new)
+        self.assertEqual(moved, [])
+
+    def test_arrivals_and_departures_are_separated(self):
+        old = self._snap([{"name": "Gone", "pos": "RB", "team": "X",
+                           "adp": 80.0, "points": 90.0}])
+        new = self._snap([{"name": "New", "pos": "RB", "team": "X",
+                           "adp": 70.0, "points": 95.0}])
+        moved, arrived, gone = self.movers.compare(old, new)
+        self.assertEqual(moved, [])
+        self.assertEqual([r["name"] for r in arrived], ["New"])
+        self.assertEqual([r["name"] for r in gone], ["Gone"])
+
+    def test_identical_boards_produce_nothing(self):
+        rows = [{"name": "A", "pos": "WR", "team": "X", "adp": 20.0, "points": 200.0}]
+        moved, arrived, gone = self.movers.compare(self._snap(rows), self._snap(rows))
+        self.assertEqual((moved, arrived, gone), ([], [], []))
+
+
+class ReplayedBoardHasUpside(unittest.TestCase):
+    """A replayed board with no ceiling silently zeroes any upside strategy."""
+
+    def setUp(self):
+        import backtest
+
+        self.backtest = backtest
+        path = os.path.join(backtest.HIST, "ecr_2024.csv")
+        if not os.path.exists(path):
+            self.skipTest("no historical ECR on disk")
+        if not os.path.exists(os.path.join(backtest.RAW, "stats_2021.csv")):
+            self.skipTest("run 'python3 fetch_data.py history' first")
+        league = engine.load_league()
+        self.league = dict(league, keepers=[],
+                           opponent_keepers={"known": [], "unknown_count": 0})
+
+    def test_ceiling_is_populated_and_brackets_points(self):
+        """Checked over the draftable range, which is where it has to hold.
+
+        Past roughly ECR 350 the two rank functions production uses — a dense
+        sort for points, a count-ahead for ceiling and floor — can disagree by
+        one place on a tie, and floor lands about half a point above points.
+        That is inherited from build_projections rather than introduced here,
+        and it only touches players nobody in an 8-team league drafts.
+        """
+        board = self.backtest.season_board(2024, self.league)
+        skill = [p for p in board if p.pos in ("QB", "RB", "WR", "TE")]
+        draftable = [p for p in skill if p.adp <= 180]
+        self.assertTrue(draftable)
+        for p in draftable:
+            self.assertGreaterEqual(p.ceiling, p.points - 1e-6, p.name)
+            self.assertLessEqual(p.floor, p.points + 1e-6, p.name)
+        spread = sum(p.ceiling - p.points for p in skill) / len(skill)
+        self.assertGreater(spread, 1.0, "the whole board cannot have zero upside")

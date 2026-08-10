@@ -34,7 +34,7 @@ import sys
 from collections import defaultdict
 
 import sim
-from build_projections import at_rank, points_curve
+from build_projections import at_rank, points_curve, rank_at_overall
 from engine import HERE, Player, build_board, load_league
 from last_season import norm
 
@@ -127,6 +127,18 @@ def season_board(season: int, league: dict):
                     setattr(p, attr, float(r[key]))
                 except ValueError:
                     pass
+        # Ceiling and floor the same way build_projections derives them: the
+        # panel's best and worst case for this player, run through the same
+        # curve. Without these the replayed board has upside of exactly zero,
+        # and any strategy that trades on it silently measures nothing.
+        if pos not in ("K", "DST", "DEF") and curve.get(pos):
+            c = curve[pos]
+            best = p.ecr_best or ecr
+            worst = p.ecr_worst or ecr
+            p.ceiling = at_rank(c, rank_at_overall(by_pos, pos, best))
+            p.floor = at_rank(c, rank_at_overall(by_pos, pos, worst))
+        else:
+            p.ceiling = p.floor = pts
         players.append(p)
     return build_board(league, players)
 

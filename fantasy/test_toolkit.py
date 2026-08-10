@@ -15,6 +15,7 @@ import os
 import random
 import tempfile
 import unittest
+import unittest.mock
 from collections import defaultdict
 
 import draft_day
@@ -833,3 +834,94 @@ class RealDataSmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class NameResolution(StateIsolated):
+    """A misread name is the one draft-day error with no recovery.
+
+    Every pick after a dropped one is numbered wrong, and every survival
+    estimate is computed against the wrong clock.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.board = make_board()
+        self.d = draft_day.Draft(LEAGUE, self.board)
+
+    def test_surname_ignores_generational_suffixes(self):
+        self.assertEqual(draft_day._surname("James Cook III"), "cook")
+        self.assertEqual(draft_day._surname("Marvin Harrison Jr."), "harrison")
+        self.assertEqual(draft_day._surname("Ja'Marr Chase"), "chase")
+
+    def test_exact_surname_wins_over_other_substring_hits(self):
+        players = [
+            Player(name="Derrick Henry", pos="RB", team="BAL", adp=38.0, points=250.0),
+            Player(name="Hunter Henry", pos="TE", team="NE", adp=164.0, points=120.0),
+            Player(name="Henry Ruggs", pos="WR", team="XX", adp=300.0, points=90.0),
+        ]
+        d = draft_day.Draft(LEAGUE, engine.build_board(LEAGUE, players))
+        # Two players carry "henry" as a surname, so this must still ask rather
+        # than silently pick one.
+        got = d.find("ruggs")
+        self.assertEqual(got.name, "Henry Ruggs")
+
+    def test_unique_surname_resolves_without_a_prompt(self):
+        players = [
+            Player(name="Derrick Henry", pos="RB", team="BAL", adp=38.0, points=250.0),
+            Player(name="Henry Ruggs", pos="WR", team="XX", adp=300.0, points=90.0),
+        ]
+        d = draft_day.Draft(LEAGUE, engine.build_board(LEAGUE, players))
+        got = d.find("henry")
+        self.assertIsNotNone(got)
+        self.assertEqual(got.name, "Derrick Henry")
+
+    def test_cancelled_disambiguation_says_so(self):
+        """Backing out must be visible; a silent drop corrupts the pick count."""
+        import io
+        import contextlib
+
+        cands = [p for p in self.board if p.pos == "RB"][:3]
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            with unittest.mock.patch("builtins.input", return_value=""):
+                got = self.d._disambiguate(cands, "amb")
+        self.assertIsNone(got)
+        self.assertIn("nothing recorded", buf.getvalue())
+
+    def test_prompt_accepts_a_fuller_name_not_only_a_number(self):
+        import io
+        import contextlib
+
+        target = [p for p in self.board if p.pos == "RB"][1]
+        cands = [p for p in self.board if p.pos == "RB"][:3]
+        with contextlib.redirect_stdout(io.StringIO()):
+            with unittest.mock.patch("builtins.input", return_value=target.name):
+                got = self.d._disambiguate(cands, "amb")
+        self.assertIs(got, target)
+
+    def test_a_dropped_name_does_not_advance_the_clock(self):
+        import io
+        import contextlib
+
+        before = self.d.on_the_clock
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.d.find("zzzz nobody")
+        self.assertEqual(self.d.on_the_clock, before)
+
+
+class DisambiguationCommands(StateIsolated):
+    def setUp(self):
+        super().setUp()
+        self.d = draft_day.Draft(LEAGUE, make_board())
+
+    def test_command_word_at_the_prompt_cancels(self):
+        import io
+        import contextlib
+
+        cands = [p for p in self.d.board if p.pos == "RB"][:3]
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            with unittest.mock.patch("builtins.input", return_value="go"):
+                got = self.d._disambiguate(cands, "amb")
+        self.assertIsNone(got)
+        self.assertIn("cancelled", buf.getvalue())

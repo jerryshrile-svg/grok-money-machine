@@ -55,7 +55,7 @@ def resolve(draft, query: str):
         return subs[0], []
     if len(subs) > 1:
         # Prefer an exact surname hit before declaring it ambiguous.
-        surname = [p for p in subs if p.name.lower().split()[-1] == q]
+        surname = [p for p in subs if draft_day._surname(p.name) == q]
         if len(surname) == 1:
             return surname[0], []
         return None, sorted(subs, key=lambda p: p.adp)[:6]

@@ -53,6 +53,24 @@ def _norm(pos: str) -> str:
     return "DEF" if pos in ("DST", "D/ST") else pos
 
 
+# "James Cook III" has to answer to "cook", not to "iii".
+SUFFIXES = frozenset(("jr", "jr.", "sr", "sr.", "ii", "iii", "iv", "v"))
+
+
+def _surname(name: str) -> str:
+    parts = [w for w in name.lower().split() if w not in SUFFIXES]
+    return parts[-1] if parts else ""
+
+
+# Typed at a "which?" prompt these mean "get me out of here", not "find a player
+# whose name contains this".
+COMMAND_WORDS = frozenset((
+    "go", "t", "targets", "rec", "board", "b", "roster", "r", "picks",
+    "undo", "save", "quit", "q", "exit", "help", "h", "?",
+    "rb", "wr", "te", "qb", "k", "def",
+))
+
+
 class Draft:
     def __init__(self, league, board):
         self.league = league
@@ -420,6 +438,14 @@ class Draft:
         if len(subs) == 1:
             return subs[0]
         if len(subs) > 1:
+            # An exact surname beats a substring hit elsewhere in someone's name:
+            # "henry" is Derrick Henry, not a three-way menu including Hunter
+            # Henry and a receiver whose first name happens to contain it. The
+            # chat front end already resolved this; the terminal is the one
+            # running under a clock, so it needs it more.
+            surname = [p for p in subs if _surname(p.name) == q]
+            if len(surname) == 1:
+                return surname[0]
             return self._disambiguate(subs, query)
         # Last-name / fuzzy fallback.
         names = {p.name.lower(): p for p in avail}
@@ -436,17 +462,41 @@ class Draft:
             print(f"{YEL}no match for '{query}'{OFF}")
         return None
 
-    def _disambiguate(self, cands, query):
+    def _disambiguate(self, cands, query, depth: int = 0):
+        """Ask which player was meant, and never fall through silently.
+
+        Two things a draft makes likely and the first version got wrong. You can
+        answer with a fuller name instead of a number, because under a clock that
+        is what fingers do. And backing out says so in yellow — a dropped pick
+        shifts every pick number after it and quietly corrupts every survival
+        estimate for the rest of the draft, which is not a thing to learn about
+        four rounds later.
+        """
         cands = sorted(cands, key=lambda p: p.adp)[:8]
         print(f"'{query}' matches several:")
         for i, p in enumerate(cands, 1):
             print(f"  {i}. {p.name} ({_norm(p.pos)}, {p.team}, ADP {p.adp:.0f})")
         try:
-            choice = input("which? [number, blank to cancel] ").strip()
+            choice = input("which? [number, or type more of the name] ").strip()
         except (EOFError, KeyboardInterrupt):
-            return None
+            choice = ""
         if choice.isdigit() and 1 <= int(choice) <= len(cands):
             return cands[int(choice) - 1]
+        if choice.lower() in COMMAND_WORDS:
+            # You meant to be back at the main prompt. Searching the board for a
+            # player called "go" would be a baffling thing to do about it.
+            print(f"{YEL}cancelled — type the command again{OFF}")
+            return None
+        if choice and depth < 2:
+            narrowed = [p for p in cands if choice.lower() in p.name.lower()]
+            if len(narrowed) == 1:
+                return narrowed[0]
+            if narrowed:
+                return self._disambiguate(narrowed, choice, depth + 1)
+            # Not a narrowing of this list — treat it as a fresh name.
+            return self.find(choice)
+        print(f"{YEL}nothing recorded for '{query}' — pick {self.on_the_clock} "
+              f"is still open{OFF}")
         return None
 
 

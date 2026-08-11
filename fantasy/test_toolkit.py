@@ -1016,3 +1016,46 @@ class ReplayedBoardHasUpside(unittest.TestCase):
             self.assertLessEqual(p.floor, p.points + 1e-6, p.name)
         spread = sum(p.ceiling - p.points for p in skill) / len(skill)
         self.assertGreater(spread, 1.0, "the whole board cannot have zero upside")
+
+
+class CheatSheetFreshness(unittest.TestCase):
+    """The printed sheet must report the board's real age, not a typed-in date.
+
+    It exists to tell you how current your board is. A hardcoded date meant a
+    correctly-refreshed board printed a sheet claiming to be two weeks stale.
+    """
+
+    def test_consensus_date_matches_the_built_projections(self):
+        import json
+        import cheatsheet
+
+        meta = os.path.join(engine.HERE, "data", "projections.meta.json")
+        if not os.path.exists(meta):
+            self.skipTest("run build_projections.py first")
+        with open(meta) as fh:
+            expected = json.load(fh).get("scrape_date", "")
+        if not expected:
+            self.skipTest("no scrape_date recorded")
+        self.assertEqual(cheatsheet.consensus_date(), expected)
+
+    def test_missing_metadata_says_unknown_rather_than_guessing(self):
+        import cheatsheet
+
+        original = cheatsheet.HERE
+        with tempfile.TemporaryDirectory() as tmp:
+            cheatsheet.HERE = tmp
+            try:
+                self.assertEqual(cheatsheet.consensus_date(), "unknown")
+            finally:
+                cheatsheet.HERE = original
+
+    def test_no_hardcoded_date_in_the_template(self):
+        """A literal yyyy-mm-dd in the source is how this broke the first time."""
+        import inspect
+        import re
+        import cheatsheet
+
+        src = inspect.getsource(cheatsheet.render) if hasattr(cheatsheet, "render") \
+            else open(cheatsheet.__file__).read()
+        hits = [m for m in re.findall(r"20\d\d-\d\d-\d\d", src)]
+        self.assertEqual(hits, [], f"hardcoded date(s) in cheatsheet.py: {hits}")

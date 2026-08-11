@@ -23,6 +23,25 @@ from last_season import norm
 # short enough to stay a sheet rather than a book.
 DEPTH = {"RB": 16, "WR": 16, "TE": 9, "QB": 9}
 
+
+def consensus_date() -> str:
+    """When the rankings behind this sheet were actually scraped.
+
+    Read from the same file audit.py reads, not typed into the template. It was
+    hardcoded to a date that went stale within a week, which is the worst
+    possible bug for this particular artefact: the sheet exists to tell you how
+    current your board is, and a correctly-refreshed board would have printed
+    one claiming to be two weeks old on draft morning.
+    """
+    import json
+
+    path = os.path.join(HERE, "data", "projections.meta.json")
+    try:
+        with open(path) as fh:
+            return json.load(fh).get("scrape_date", "") or "unknown"
+    except (OSError, ValueError):
+        return "unknown"
+
 # What the wait-cost rule does at each pick, from `sim.py plan`.
 PLAN = [
     ("6", "1", "Bijan Robinson", "keeper, costs your R1"),
@@ -202,7 +221,8 @@ def build(board, league, season) -> str:  # noqa: C901
         for t, d in RULES
     )
 
-    scraped = date.today().isoformat()
+    printed = date.today().isoformat()
+    scraped = consensus_date()
     return f"""<title>Draft Day — 8-Team 0.5 PPR, Pick 6</title>
 <style>
 :root {{
@@ -343,7 +363,7 @@ footer code {{ color:var(--ink); background:var(--soft); padding:1px 5px; }}
 <div class="sheet">
 <header>
   <h1>Draft Day &mdash; <em>pick 6 of 8</em></h1>
-  <div class="meta">0.5 PPR &middot; snake &middot; 14 rounds<br>consensus 2026-07-31 &middot; sheet {scraped}</div>
+  <div class="meta">0.5 PPR &middot; snake &middot; 14 rounds<br>consensus {scraped} &middot; sheet {printed}</div>
 </header>
 
 <div class="rule">

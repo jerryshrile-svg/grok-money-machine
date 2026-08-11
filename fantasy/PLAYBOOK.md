@@ -766,3 +766,50 @@ So in round 13 or 14, if Yahoo shows an injury designation on someone whose heal
 ranking would have been sixty places higher, take him. The board can't tell you who
 that is — the consensus prices the injury into the ranking and the free data carries
 no designation — but Yahoo's own draft UI shows it, and that is enough.
+
+---
+
+## 19. The regression signal, tested against the market instead of the player
+
+`validate.py` established that points over expected barely repeats — 4% year to
+year — and that hot players give back 91% of the gap while cold ones recover 31%.
+Every one of those numbers is about the **player**. None is about the **market**,
+and the market is what you are drafting against.
+
+That distinction went unexamined for the entire project, and section 15 had
+already shown why it matters: prior-year usage is genuinely predictive and still
+made the board worse, because the panel had priced it. The same trap applies here.
+
+`poe_test.py` rebuilds each replayed board with the validated adjustment applied
+to every player and drafts against the unadjusted board, paired:
+
+```
+adjustment strength     season pts     vs unadjusted
+0.00                          1563        baseline
+0.50                          1562          -1 ± 5     inside the noise
+1.00 (full measured)          1536         -27 ± 5     real, and worse
+```
+
+**The consensus already prices touchdown regression.** Acting on the fade and buy
+lists on top of the ranking is double-counting, and at full strength it costs 27
+points a season.
+
+So `last_season.py` is not a source of adjustments. It is a source of
+explanations. The `LY` column tells you *why* a player is ranked where he is —
+useful when you are choosing between two players the board already rates equally,
+and not a reason to move either of them. That is the same conclusion section 15
+reached about snap and target share, arrived at from the opposite direction, and
+it is now the general rule: **this toolkit's edge is format conversion and pick
+timing, not player opinion.**
+
+### A conclusion this reversed
+
+The keeper decision in section 20 was initially argued for George Pickens over
+Bijan Robinson on exactly this signal — Bijan ran +47 points over his opportunity
+in 2025, the giveback is 91%, so haircut him and Pickens wins. The haircut was
+measured after the argument was made, which is the failure mode section 10 exists
+to prevent, and the measurement says the haircut is not legitimate.
+
+Without it the two are a genuine tie, and the recommendation rests on the softer
+factors instead. Recorded because the reasoning was persuasive, specific, and
+wrong for the second time in this project on the same mistake.

@@ -37,6 +37,8 @@ python3 validate.py            # does the regression signal actually predict?
 python3 usage.py 2025          # prior-year usage vs consensus rank
 python3 usage_test.py 300      # does usage belong in the board? (measured: no)
 python3 objective.py 300       # is total points the right target? (measured: yes)
+python3 poe_test.py 400        # does the regression signal beat the market? (no)
+python3 keeper_choice.py 600   # which player to keep, and what it costs
 python3 movers.py              # what moved since your leaguemates printed their list
 python3 season_value.py        # draft vs waiver wire: where the value actually is
 python3 waiver_signal.py       # does opportunity beat points on the wire? (yes)
@@ -237,6 +239,8 @@ against when it is.
 | `usage_test.py` | Whether usage belongs in the board. Measured: it doesn't. |
 | `objective.py` | Whole-season points vs playoff weeks, and upside vs expectation. |
 | `movers.py` | Board movement between two dated snapshots — the stale-list edge. |
+| `poe_test.py` | Whether acting on the regression signal beats the consensus. |
+| `keeper_choice.py` | Which player to keep, measured against keeping nobody. |
 | `season_value.py` | Measures the waiver wire against the draft across five seasons. |
 | `waiver_signal.py` | Tests opportunity vs points as the in-season waiver signal. |
 | `test_toolkit.py` | Invariants that would otherwise break silently mid-draft. |

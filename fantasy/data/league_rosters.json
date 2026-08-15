@@ -139,5 +139,25 @@
       "Chris Godwin Jr."
     ],
     "def": "Broncos"
+  },
+  "Who's Your Daddy? (Matt)": {
+    "starters": [
+      "Lamar Jackson",
+      "Jahmyr Gibbs",
+      "Breece Hall",
+      "Nico Collins",
+      "Drake London",
+      "Sam LaPorta",
+      "D'Andre Swift"
+    ],
+    "bench": [
+      "Terry McLaurin",
+      "Marvin Harrison Jr.",
+      "Chuba Hubbard",
+      "Aaron Jones Sr.",
+      "Jordyn Tyson",
+      "Travis Kelce"
+    ],
+    "def": "Eagles"
   }
 }

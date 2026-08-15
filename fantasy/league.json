@@ -46,8 +46,16 @@
     "the other seven teams you expect to keep somebody."
   ],
   "opponent_keepers": {
-    "known": [],
-    "unknown_count": 7,
+    "known": [
+      "Jaxon Smith-Njigba",
+      "Jahmyr Gibbs",
+      "Matthew Golden",
+      "Josh Allen",
+      "Rashee Rice",
+      "Cam Skattebo",
+      "A.J. Brown"
+    ],
+    "unknown_count": 0,
     "pool_top_n": 14
   },
   "//schedule": [

@@ -1,0 +1,37 @@
+{
+  "teams": 14,
+  "my_draft_slot": 11,
+  "rounds": 16,
+  "roster": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 1,
+    "K": 1,
+    "DEF": 1,
+    "BN": 7
+  },
+  "flex_eligible": [
+    "RB",
+    "WR",
+    "TE"
+  ],
+  "scoring": {
+    "pass_yd": 0.04,
+    "pass_td": 4.0,
+    "pass_int": -1.0,
+    "rush_yd": 0.1,
+    "rush_td": 6.0,
+    "rec": 0.5,
+    "rec_yd": 0.1,
+    "rec_td": 6.0,
+    "fumble_lost": -2.0,
+    "two_pt": 2.0
+  },
+  "keepers": [],
+  "opponent_keepers": {
+    "known": [],
+    "unknown_count": 0
+  }
+}

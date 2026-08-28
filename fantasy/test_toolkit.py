@@ -1,0 +1,1061 @@
+"""Tests for the parts that would silently ruin a draft.
+
+Draft day is unrecoverable — a wrong pick number or a keeper the model thinks is
+available costs a pick you never get back, under a 90-second clock. Every bug
+found so far in this toolkit was caught by eyeballing output, which is not a
+plan. These cover the invariants instead.
+
+    python3 -m unittest test_toolkit -v
+    python3 test_toolkit.py
+"""
+
+from __future__ import annotations
+
+import os
+import random
+import tempfile
+import unittest
+import unittest.mock
+from collections import defaultdict
+
+import draft_day
+import engine
+from last_season import norm as norm_name
+import opponent
+import sim
+from engine import Player
+
+LEAGUE = {
+    "teams": 8,
+    "my_draft_slot": 6,
+    "rounds": 14,
+    "roster": {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "FLEX": 1, "K": 1, "DEF": 1, "BN": 5},
+    "flex_eligible": ["RB", "WR", "TE"],
+    "scoring": {
+        # Matches league.json so build_board's scoring check stays quiet during
+        # tests. A warning that always fires is a warning nobody reads.
+        "pass_yd": 0.04, "pass_td": 4.0, "pass_int": -1.0,
+        "rush_yd": 0.1, "rush_td": 6.0,
+        "rec": 0.5, "rec_yd": 0.1, "rec_td": 6.0,
+        "fumble_lost": -2.0, "two_pt": 2.0,
+    },
+    "keepers": [{"team": "ME", "player": "Keeper Back", "round": 1, "pick_overall": 6}],
+    "opponent_keepers": {"known": [], "unknown_count": 0, "round": 1, "pool_top_n": 36},
+}
+
+
+def make_board(n_per_pos=40):
+    """Synthetic board with a clean, monotonic value curve per position."""
+    players = []
+    adp = 1.0
+    for i in range(n_per_pos):
+        for pos, base in (("RB", 300), ("WR", 290), ("QB", 380), ("TE", 200)):
+            players.append(
+                Player(
+                    name=f"{pos} Player {i + 1}",
+                    pos=pos,
+                    team="XX",
+                    adp=adp,
+                    points=base - i * 5.0,
+                )
+            )
+            adp += 1
+    for i in range(10):
+        players.append(Player(name=f"K Player {i+1}", pos="K", team="XX",
+                              adp=400 + i, points=130 - i))
+        players.append(Player(name=f"DST Player {i+1}", pos="DST", team="XX",
+                              adp=420 + i, points=120 - i))
+    # The keeper the league config refers to.
+    players.append(Player(name="Keeper Back", pos="RB", team="XX", adp=2.0, points=310.0))
+    return engine.build_board(LEAGUE, players)
+
+
+REAL_STATE_PATH = draft_day.STATE_PATH
+
+
+class StateIsolated(unittest.TestCase):
+    """Base for tests that touch a Draft, which saves to disk when it records.
+
+    Anything holding a Draft has to redirect the state file *before* building
+    it, and put it back afterwards. Getting that wrong wrote a phantom pick-1
+    for a fake player into the real draft_state.json every time the suite ran —
+    and the instructions say to run the suite the morning of the draft, so the
+    live assistant would then resume a draft that never happened, with every
+    pick number shifted by one.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        draft_day.STATE_PATH = os.path.join(self._tmp.name, "state.json")
+
+    def tearDown(self):
+        draft_day.STATE_PATH = REAL_STATE_PATH
+        self._tmp.cleanup()
+
+
+class SnakeMath(unittest.TestCase):
+    def test_known_slot(self):
+        self.assertEqual(
+            engine.snake_picks(6, 8, 4), [6, 11, 22, 27]
+        )
+
+    def test_slot_for_pick_inverts_snake_picks(self):
+        teams, rounds = 8, 14
+        for slot in range(1, teams + 1):
+            for pick in engine.snake_picks(slot, teams, rounds):
+                self.assertEqual(engine.slot_for_pick(pick, teams), slot)
+
+    def test_every_pick_belongs_to_exactly_one_slot(self):
+        teams, rounds = 8, 14
+        owned = defaultdict(list)
+        for slot in range(1, teams + 1):
+            for pick in engine.snake_picks(slot, teams, rounds):
+                owned[pick].append(slot)
+        self.assertEqual(sorted(owned), list(range(1, teams * rounds + 1)))
+        for pick, slots in owned.items():
+            self.assertEqual(len(slots), 1, f"pick {pick} owned by {slots}")
+
+
+class ReplacementAndValue(unittest.TestCase):
+    def setUp(self):
+        self.board = make_board()
+
+    def test_replacement_is_deeper_than_dedicated_starters(self):
+        """Flex demand must push RB/WR baselines past the pure starter count."""
+        levels = engine.replacement_levels(self.board, LEAGUE)
+        rbs = sorted((p for p in self.board if p.pos == "RB"), key=lambda p: -p.points)
+        # 2 RB x 8 teams = 16 dedicated; flex must consume at least one more.
+        self.assertLess(levels["RB"], rbs[15].points)
+
+    def test_qb_baseline_reflects_eight_starters(self):
+        levels = engine.replacement_levels(self.board, LEAGUE)
+        qbs = sorted((p for p in self.board if p.pos == "QB"), key=lambda p: -p.points)
+        self.assertEqual(levels["QB"], qbs[8].points)
+
+    def test_kickers_and_defenses_have_no_value(self):
+        for p in self.board:
+            if p.pos in ("K", "DST", "DEF"):
+                self.assertEqual(p.vorp, 0.0)
+
+    def test_tiers_never_improve_as_value_falls(self):
+        by_pos = defaultdict(list)
+        for p in self.board:
+            by_pos[p.pos].append(p)
+        for pos, pool in by_pos.items():
+            pool.sort(key=lambda p: -p.vorp)
+            for a, b in zip(pool, pool[1:]):
+                self.assertLessEqual(a.tier, b.tier, f"{pos}: {a.name} -> {b.name}")
+
+    def test_metadata_columns_are_not_scored(self):
+        """A bye week or yahoo_id must never be treated as a scoring stat."""
+        p = Player(name="X", pos="RB", team="XX", adp=1.0)
+        p.stats = {"bye": 9.0, "yahoo_id": 12345.0}
+        self.assertEqual(engine.score(p, LEAGUE["scoring"]), 0.0)
+
+
+class Lineup(unittest.TestCase):
+    def test_flex_takes_best_leftover(self):
+        roster = [
+            Player(name="qb", pos="QB", team="X", adp=1, points=300),
+            Player(name="rb1", pos="RB", team="X", adp=2, points=200),
+            Player(name="rb2", pos="RB", team="X", adp=3, points=190),
+            Player(name="rb3", pos="RB", team="X", adp=4, points=180),
+            Player(name="wr1", pos="WR", team="X", adp=5, points=150),
+            Player(name="wr2", pos="WR", team="X", adp=6, points=140),
+            Player(name="te1", pos="TE", team="X", adp=7, points=100),
+        ]
+        # 300 + (200+190) + (150+140) + 100 + flex 180
+        self.assertAlmostEqual(sim.starting_lineup_points(roster, LEAGUE), 1260.0)
+
+    def test_incomplete_roster_does_not_crash(self):
+        roster = [Player(name="qb", pos="QB", team="X", adp=1, points=300)]
+        self.assertAlmostEqual(sim.starting_lineup_points(roster, LEAGUE), 300.0)
+
+
+class OpponentModel(unittest.TestCase):
+    def setUp(self):
+        self.board = make_board()
+
+    def _full_draft(self, seed=0):
+        rng = random.Random(seed)
+        pool = [p for p in self.board if p.name != "Keeper Back"]
+        counts = defaultdict(lambda: defaultdict(int))
+        runs = opponent.RunTracker()
+        picked = []
+        for rnd in range(1, LEAGUE["rounds"] + 1):
+            for slot in range(1, LEAGUE["teams"] + 1):
+                pick = opponent.choose(pool, counts[slot], rnd, LEAGUE, rng, runs)
+                self.assertIsNotNone(pick)
+                pos = opponent.norm_pos(pick.pos)
+                counts[slot][pos] += 1
+                runs.add(pos)
+                pool.remove(pick)
+                picked.append((rnd, slot, pick))
+        return counts, picked
+
+    def test_never_exceeds_position_caps(self):
+        counts, _ = self._full_draft()
+        for slot, c in counts.items():
+            for pos, cap in opponent.POS_CAP.items():
+                self.assertLessEqual(c.get(pos, 0), cap, f"slot {slot} {pos}")
+
+    def test_every_team_fills_its_starting_lineup(self):
+        """The old model left all eight teams without a kicker or defense."""
+        counts, _ = self._full_draft()
+        for slot, c in counts.items():
+            need = opponent.starter_needs(c, LEAGUE)
+            self.assertEqual(
+                sum(need.values()), 0, f"slot {slot} finished with holes: {need}"
+            )
+
+    def test_kickers_and_defenses_go_late(self):
+        _, picked = self._full_draft()
+        for rnd, _slot, p in picked:
+            if opponent.norm_pos(p.pos) in ("K", "DEF"):
+                self.assertGreaterEqual(
+                    rnd, LEAGUE["rounds"] - opponent.KDEF_LAST_ROUNDS,
+                    f"{p.name} went in round {rnd}",
+                )
+
+    def test_no_player_drafted_twice(self):
+        _, picked = self._full_draft()
+        names = [p.name for _, _, p in picked]
+        self.assertEqual(len(names), len(set(names)))
+
+    def test_run_tracker_respects_window(self):
+        t = opponent.RunTracker(window=3)
+        for pos in ("RB", "RB", "WR", "TE"):
+            t.add(pos)
+        self.assertEqual(t.pressure("RB"), 1)
+        self.assertEqual(len(t.recent), 3)
+
+    def test_run_pressure_is_capped(self):
+        """Uncapped pressure compounds into a runaway run on one position."""
+        t = opponent.RunTracker(window=12)
+        for _ in range(12):
+            t.add("WR")
+        self.assertEqual(t.pressure("WR"), opponent.RUN_CAP)
+
+    def test_elite_players_do_not_survive_the_first_round(self):
+        """A top-three consensus player must not routinely last nine picks."""
+        board = make_board()
+        survived = 0
+        trials = 60
+        best = min(board, key=lambda p: p.adp)
+        for t in range(trials):
+            rng = random.Random(t)
+            pool = [p for p in board if p.name != "Keeper Back"]
+            counts = defaultdict(lambda: defaultdict(int))
+            runs = opponent.RunTracker()
+            for slot in range(1, 10):
+                pick = opponent.choose(pool, counts[slot], 1, LEAGUE, rng, runs)
+                counts[slot][opponent.norm_pos(pick.pos)] += 1
+                runs.add(pick.pos)
+                pool.remove(pick)
+            if best in pool:
+                survived += 1
+        self.assertLess(survived / trials, 0.25, f"{best.name} survived too often")
+
+    def test_flex_need_comes_from_surplus(self):
+        need = opponent.starter_needs({"RB": 2, "WR": 2, "TE": 1, "QB": 1}, LEAGUE)
+        self.assertEqual(need["FLEX"], 1)
+        need = opponent.starter_needs({"RB": 3, "WR": 2, "TE": 1, "QB": 1}, LEAGUE)
+        self.assertEqual(need["FLEX"], 0)
+
+
+class FullDraftIntegrity(unittest.TestCase):
+    def setUp(self):
+        self.board = make_board()
+
+    def test_my_roster_size_and_uniqueness(self):
+        rng = random.Random(3)
+        mine = sim.run_draft(self.board, LEAGUE, ["WAIT"] * 14, rng)
+        self.assertEqual(len(mine), LEAGUE["rounds"])
+        self.assertEqual(len({p.name for p in mine}), LEAGUE["rounds"])
+
+    def test_keeper_is_on_my_roster_and_never_available(self):
+        rng = random.Random(4)
+        mine = sim.run_draft(self.board, LEAGUE, ["WAIT"] * 14, rng)
+        self.assertIn("Keeper Back", {p.name for p in mine})
+
+    def test_wait_strategy_fills_a_legal_lineup(self):
+        rng = random.Random(5)
+        mine = sim.run_draft(self.board, LEAGUE, ["WAIT"] * 14, rng)
+        counts = defaultdict(int)
+        for p in mine:
+            counts[opponent.norm_pos(p.pos)] += 1
+        need = opponent.starter_needs(counts, LEAGUE)
+        self.assertEqual(sum(need.values()), 0, f"holes left: {need}")
+
+    def test_opponent_keepers_consume_picks_and_players(self):
+        rng = random.Random(6)
+        pool = [p for p in self.board if p.name != "Keeper Back"]
+        kept = sim.opponent_keepers(pool, LEAGUE, rng, count=7)
+        self.assertEqual(len(kept), 7)
+        # One per opposing team, never on my slot.
+        slots = {engine.slot_for_pick(pick, LEAGUE["teams"]) for pick in kept}
+        self.assertEqual(len(slots), 7)
+        self.assertNotIn(LEAGUE["my_draft_slot"], slots)
+
+    def test_more_keepers_never_crashes_the_draft(self):
+        for count in range(0, LEAGUE["teams"]):
+            rng = random.Random(7 + count)
+            mine = sim.run_draft(
+                self.board, LEAGUE, ["WAIT"] * 14, rng, keeper_count=count
+            )
+            self.assertEqual(len(mine), LEAGUE["rounds"], f"count={count}")
+
+
+class LiveAssistant(StateIsolated):
+    def setUp(self):
+        super().setUp()
+        self.board = make_board()
+        self.d = draft_day.Draft(LEAGUE, self.board)
+
+    def test_state_file_stays_out_of_the_real_one(self):
+        """Recording a pick must never touch the live draft's state file."""
+        self.assertNotEqual(draft_day.STATE_PATH, REAL_STATE_PATH)
+        before = os.path.exists(REAL_STATE_PATH)
+        self.d.record(self.d.available[0], mine=False)
+        self.assertTrue(os.path.exists(draft_day.STATE_PATH))
+        self.assertEqual(os.path.exists(REAL_STATE_PATH), before)
+
+    def test_keeper_never_appears_available(self):
+        self.assertNotIn("Keeper Back", {p.name for p in self.d.available})
+
+    def test_keeper_auto_advances_and_counts_as_mine(self):
+        for i in range(5):
+            self.d.record(self.d.available[i], mine=False)
+        # Pick 6 is the keeper slot; it should fill itself.
+        self.assertEqual(self.d.on_the_clock, 7)
+        self.assertIn("Keeper Back", {p.name for p in self.d.my_roster})
+
+    def test_next_pick_skips_the_keeper_slot(self):
+        self.assertEqual(self.d.next_pick(after=1), 11)
+
+    def test_next_pick_after_current_is_not_current(self):
+        # Nine recorded picks plus the auto-filled keeper at 6 puts us on 11.
+        for i in range(9):
+            self.d.record(self.d.available[i], mine=False)
+        self.assertEqual(self.d.on_the_clock, 11)
+        self.assertEqual(self.d.next_pick(after=11), 22)
+
+    def test_undo_restores_availability(self):
+        target = self.d.available[0]
+        self.d.record(target, mine=False)
+        self.assertNotIn(target.name, {p.name for p in self.d.available})
+        self.d.undo()
+        self.assertIn(target.name, {p.name for p in self.d.available})
+
+    def test_opponent_rosters_exclude_me_and_track_positions(self):
+        for i in range(10):
+            self.d.record(self.d.available[i], mine=False)
+        rosters = self.d.opponent_rosters()
+        total = sum(sum(c.values()) for c in rosters.values())
+        # Ownership follows the snake, not the `mine` flag: both pick 6 (keeper)
+        # and pick 11 fall on my slot, so both are excluded.
+        mine_by_slot = sum(
+            1 for e in self.d.picks
+            if engine.slot_for_pick(e["pick"], LEAGUE["teams"])
+            == LEAGUE["my_draft_slot"]
+        )
+        self.assertEqual(total, len(self.d.picks) - mine_by_slot)
+        self.assertEqual(mine_by_slot, 2)
+
+    def test_survival_probabilities_are_valid(self):
+        for i in range(10):
+            self.d.record(self.d.available[i], mine=False)
+        probs = self.d.survival(horizon=10, trials=40)
+        self.assertTrue(all(0.0 <= v <= 1.0 for v in probs.values()))
+
+    def test_survival_falls_as_the_wait_grows(self):
+        for i in range(10):
+            self.d.record(self.d.available[i], mine=False)
+        best = max(self.d.available, key=lambda p: p.vorp).name
+        short = self.d.survival(horizon=2, trials=60)[best]
+        long = self.d.survival(horizon=12, trials=60)[best]
+        self.assertGreaterEqual(short, long)
+
+    def test_missing_season_data_does_not_break_recommendations(self):
+        """The 2025 column is optional; a missing file must not stop the draft."""
+        import last_season
+
+        original = last_season.RAW
+        last_season.RAW = "/nonexistent/path"
+        try:
+            d = draft_day.Draft(LEAGUE, self.board)
+            d._season = None
+            self.assertIsNone(d.season)
+            self.assertIsNone(d.poe_of(self.board[0]))
+            d.recommend(top=3)  # must not raise
+        finally:
+            last_season.RAW = original
+
+    def test_needs_start_at_full_lineup_minus_keeper(self):
+        need = self.d.needs()
+        self.assertEqual(need["QB"], 1)
+        self.assertEqual(need["RB"], 2)  # keeper not yet auto-advanced
+
+
+class PlayoffSchedule(unittest.TestCase):
+    """Only runs when the schedule has been fetched."""
+
+    def setUp(self):
+        import playoffs
+
+        self.playoffs = playoffs
+        if not os.path.exists(os.path.join(playoffs.RAW, "schedule_2026.csv")):
+            self.skipTest("run: python3 fetch_data.py schedule")
+        self.league = engine.load_league()
+        self.opponents = playoffs.playoff_opponents(self.league)
+
+    def test_every_team_has_three_playoff_week_opponents(self):
+        self.assertEqual(len(self.opponents), 32)
+        for tm, opps in self.opponents.items():
+            self.assertEqual(len(opps), 3, f"{tm}: {opps}")
+
+    def test_playoff_weeks_match_the_league_calendar(self):
+        """Week 17 must be the week that ends on the stated playoff end date."""
+        weeks = self.playoffs.playoff_weeks(self.league)
+        self.assertEqual(weeks, (15, 16, 17))
+        path = os.path.join(self.playoffs.RAW, "schedule_2026.csv")
+        import csv as _csv
+
+        last = max(
+            r["gameday"]
+            for r in _csv.DictReader(open(path))
+            if r["season"] == "2026" and int(r["week"]) == weeks[-1]
+        )
+        self.assertEqual(last, "2027-01-04")
+
+    def test_no_byes_during_the_playoffs(self):
+        """A bye in the championship week would be a silent disaster."""
+        import collections as _c
+        import csv as _csv
+
+        path = os.path.join(self.playoffs.RAW, "schedule_2026.csv")
+        playing = _c.defaultdict(set)
+        for r in _csv.DictReader(open(path)):
+            if r["season"] != "2026":
+                continue
+            playing[int(r["week"])].update([r["home_team"], r["away_team"]])
+        teams = set().union(*playing.values())
+        for wk in self.playoffs.playoff_weeks(self.league):
+            self.assertEqual(teams - playing[wk], set(), f"byes in week {wk}")
+
+    def test_nobody_plays_themselves(self):
+        for tm, opps in self.opponents.items():
+            self.assertNotIn(tm, opps)
+
+    def test_difficulty_is_centred_on_the_league_average(self):
+        allowed = self.playoffs.points_allowed(self.league["scoring"])
+        avg = self.playoffs.league_average(allowed)
+        diff = self.playoffs.difficulty(allowed, avg, self.opponents)
+        for pos in self.playoffs.SKILL:
+            vals = [d[pos] for d in diff.values()]
+            self.assertAlmostEqual(sum(vals) / len(vals), 0.0, delta=0.6)
+
+
+class Backtest(unittest.TestCase):
+    """Only runs when the historical inputs are present."""
+
+    def setUp(self):
+        import backtest
+
+        self.bt = backtest
+        if not os.path.exists(os.path.join(backtest.HIST, "ecr_2024.csv")):
+            self.skipTest("historical rankings not extracted")
+        if not os.path.exists(os.path.join(backtest.RAW, "stats_2021.csv")):
+            self.skipTest("historical stats not fetched")
+        self.league = engine.load_league()
+
+    def test_points_curve_honours_its_season_window(self):
+        """If the window were ignored, the backtest would be scoring itself."""
+        from build_projections import points_curve
+
+        early = points_curve(self.league["scoring"], range(2018, 2021))
+        late = points_curve(self.league["scoring"], range(2022, 2025))
+        self.assertNotEqual(early["RB"][:10], late["RB"][:10])
+
+    def test_board_for_a_season_uses_only_prior_results(self):
+        """Rebuilding with a deliberately wrong window must change the board."""
+        from build_projections import points_curve
+
+        real = points_curve(self.league["scoring"], range(2021, 2024))
+        shifted = points_curve(self.league["scoring"], range(2022, 2025))
+        self.assertNotEqual(real["WR"][:5], shifted["WR"][:5])
+
+    def test_unplayed_roster_scores_zero(self):
+        roster = [Player(name="Nobody At All", pos="RB", team="XX", adp=1, points=200)]
+        self.assertEqual(self.bt.score_roster(roster, {1: {}}, LEAGUE), 0.0)
+
+    def test_lineup_cannot_start_more_than_the_slots_allow(self):
+        roster = [
+            Player(name=f"RB {i}", pos="RB", team="X", adp=i, points=300 - i)
+            for i in range(1, 11)
+        ]
+        week = {norm_name(p.name): 10.0 for p in roster}
+        # 2 RB + 1 FLEX = 3 startable, at 10 points each, for one week.
+        self.assertEqual(self.bt.score_roster(roster, {1: week}, LEAGUE), 30.0)
+
+
+class WaiverModel(unittest.TestCase):
+    """The manager model has to behave like a manager, not an optimiser."""
+
+    def setUp(self):
+        import season_value
+
+        self.sv = season_value
+
+    def _squad(self):
+        return [
+            Player(name="QB One", pos="QB", team="X", adp=1, points=340),
+            Player(name="TE One", pos="TE", team="X", adp=2, points=170),
+            Player(name="RB One", pos="RB", team="X", adp=3, points=280),
+            Player(name="RB Two", pos="RB", team="X", adp=4, points=240),
+            Player(name="RB Three", pos="RB", team="X", adp=5, points=200),
+            Player(name="WR One", pos="WR", team="X", adp=6, points=260),
+            Player(name="WR Two", pos="WR", team="X", adp=7, points=230),
+            Player(name="WR Three", pos="WR", team="X", adp=8, points=190),
+        ]
+
+    def test_never_drops_the_last_quarterback(self):
+        """Dropping your only QB scores zero at the position all season."""
+        squad = self._squad()
+        hot = Player(name="Hot Receiver", pos="WR", team="X", adp=99, points=40)
+        weeks = list(range(1, 6))
+        actuals = {w: {norm_name(p.name): 12.0 for p in squad} for w in weeks}
+        for w in weeks:
+            actuals[w][norm_name(hot.name)] = 40.0
+        league = dict(LEAGUE)
+        self.sv.simulate_season(squad, [hot], actuals, league, weeks, "waivers")
+        # The model mutates nothing it shouldn't; assert the invariant directly.
+        counts = defaultdict(int)
+        for p in squad:
+            counts[p.pos] += 1
+        self.assertGreaterEqual(counts["QB"], 1)
+
+    def test_shrinkage_stops_a_one_game_fluke_beating_a_star(self):
+        star = Player(name="Real Star", pos="WR", team="X", adp=1, points=280)
+        fluke = Player(name="One Week Wonder", pos="WR", team="X", adp=300, points=20)
+        form = {2: {norm_name(star.name): (14.0, 1),
+                    norm_name(fluke.name): (30.0, 1)}}
+        pre = {norm_name(star.name): 280 / 17, norm_name(fluke.name): 20 / 17}
+        sv = self.sv
+        star_val = sv._estimate(star, norm_name(star.name), 2, form, pre)
+        fluke_val = sv._estimate(fluke, norm_name(fluke.name), 2, form, pre)
+        self.assertGreater(star_val, fluke_val)
+
+    def test_waivers_never_score_worse_than_no_waivers_with_hindsight(self):
+        """Perfect information must not make the season worse."""
+        squad = self._squad()
+        weeks = list(range(1, 8))
+        actuals = {w: {norm_name(p.name): 10.0 for p in squad} for w in weeks}
+        fa = Player(name="Better Back", pos="RB", team="X", adp=99, points=250)
+        for w in weeks:
+            actuals[w][norm_name(fa.name)] = 25.0
+        future = self.sv.rest_of_season(actuals, weeks)
+        base = self.sv.simulate_season(
+            list(squad), [fa], actuals, LEAGUE, weeks, "draft_only", future)
+        best = self.sv.simulate_season(
+            list(squad), [fa], actuals, LEAGUE, weeks, "perfect", future)
+        self.assertGreaterEqual(best, base)
+
+
+class AdviseFrontEnd(StateIsolated):
+    """The chat front end must never guess, and must never lose picks."""
+
+    def setUp(self):
+        super().setUp()
+        import advise
+
+        self.advise = advise
+        self.board = make_board()
+        self.d = draft_day.Draft(LEAGUE, self.board)
+
+    def test_splits_commas_newlines_and_numbered_lists(self):
+        blob = "1. Alpha One, 2) Beta Two\n3: Gamma Three; Delta Four"
+        self.assertEqual(
+            self.advise.split_names(blob),
+            ["Alpha One", "Beta Two", "Gamma Three", "Delta Four"],
+        )
+
+    def test_ambiguous_name_returns_options_not_a_guess(self):
+        """Guessing between two players would silently corrupt the board."""
+        player, options = self.advise.resolve(self.d, "Player 1")
+        self.assertIsNone(player)
+        self.assertGreater(len(options), 1)
+
+    def test_exact_name_resolves(self):
+        player, options = self.advise.resolve(self.d, "RB Player 1")
+        self.assertIsNotNone(player)
+        self.assertEqual(player.name, "RB Player 1")
+        self.assertEqual(options, [])
+
+    def test_already_drafted_name_does_not_resolve(self):
+        target = self.board[0]
+        self.d.record(target, mine=False)
+        player, options = self.advise.resolve(self.d, target.name)
+        self.assertIsNone(player)
+        self.assertEqual(options, [])
+
+    def test_unknown_name_returns_nothing(self):
+        player, options = self.advise.resolve(self.d, "Zzzz Nobody")
+        self.assertIsNone(player)
+        self.assertEqual(options, [])
+
+
+class StaleStateAudit(unittest.TestCase):
+    """The audit has to cover both front ends, not just the one it was written for."""
+
+    def test_covers_both_state_files(self):
+        import audit
+
+        names = {label for _p, label, _how in audit.STATE_FILES}
+        self.assertIn("draft_state.json", names)
+        self.assertIn("data/live_draft.json", names)
+
+    def test_flags_a_state_file_that_holds_picks(self):
+        import audit
+        import json
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "state.json")
+            with open(path, "w") as fh:
+                json.dump({"picks": [{"pick": 1, "name": "Somebody"}]}, fh)
+            original = audit.STATE_FILES
+            audit.STATE_FILES = ((path, "state.json", "delete it"),)
+            try:
+                problems, notes = [], []
+                audit.check_live_state(LEAGUE, problems, notes)
+            finally:
+                audit.STATE_FILES = original
+        self.assertEqual(notes, [])
+        self.assertTrue(problems)
+        self.assertIn("Somebody", problems[0])
+
+
+class UsageResiduals(unittest.TestCase):
+    """The usage experiment has to measure usage, not an artefact of its own fit."""
+
+    def setUp(self):
+        import usage
+
+        self.usage = usage
+        self.addCleanup(usage.set_measure, "composite")
+
+    def _board(self, usage_by_rank):
+        """A board where positional rank is known and usage is whatever we say."""
+        players = [
+            Player(name=f"WR Player {i+1}", pos="WR", team="XX",
+                   adp=float(i + 1), points=300.0 - i)
+            for i in range(len(usage_by_rank))
+        ]
+        prior = {
+            norm_name(p.name): {"pos": "WR", "games": 17,
+                                "snap": u, "tgt": u, "carry": 0.0}
+            for p, u in zip(players, usage_by_rank)
+        }
+        return engine.build_board(LEAGUE, players), prior
+
+    def test_usage_matching_rank_gives_no_adjustment(self):
+        """If usage order equals consensus order, there is nothing to add."""
+        n = 20
+        board, prior = self._board([0.9 - 0.02 * i for i in range(n)])
+        resid = self.usage.residuals(board, prior)
+        self.assertTrue(resid)
+        for name, r in resid.items():
+            self.assertAlmostEqual(r, 0.0, places=6, msg=name)
+
+    def test_elite_player_with_elite_usage_is_not_penalised(self):
+        """The first attempt fitted a curve and charged the WR1 for saturating.
+
+        Chase came out at -2.64 standard deviations on 92% of snaps and a 27%
+        target share, which said more about the curve than about Chase.
+        """
+        n = 20
+        usages = [0.9 - 0.02 * i for i in range(n)]
+        board, prior = self._board(usages)
+        resid = self.usage.residuals(board, prior)
+        top = min(board, key=lambda p: p.adp)
+        self.assertGreaterEqual(resid[norm_name(top.name)], -0.5)
+
+    def test_underused_high_pick_goes_negative(self):
+        n = 20
+        usages = [0.9 - 0.02 * i for i in range(n)]
+        usages[1] = 0.10          # ranked WR2, used like the last man on the list
+        board, prior = self._board(usages)
+        resid = self.usage.residuals(board, prior)
+        self.assertLess(resid[norm_name("WR Player 2")], -0.5)
+
+    def test_residuals_are_clipped(self):
+        n = 20
+        usages = [0.5] * n
+        usages[-1] = 99.0         # one absurd outlier must not swamp the board
+        board, prior = self._board(usages)
+        for r in self.usage.residuals(board, prior).values():
+            self.assertLessEqual(abs(r), self.usage.CLIP + 1e-9)
+
+    def test_players_without_a_prior_season_get_nothing(self):
+        """Rookies have no usage history; inventing one is worse than omitting it."""
+        n = 20
+        board, prior = self._board([0.9 - 0.02 * i for i in range(n)])
+        prior.pop(norm_name("WR Player 5"))
+        resid = self.usage.residuals(board, prior)
+        self.assertNotIn(norm_name("WR Player 5"), resid)
+
+    def test_measures_are_distinct_and_switchable(self):
+        self.usage.set_measure("target")
+        self.assertEqual(self.usage.WEIGHTS["WR"]["tgt"], 1.0)
+        self.assertEqual(self.usage.WEIGHTS["WR"]["snap"], 0.0)
+        self.usage.set_measure("snap")
+        self.assertEqual(self.usage.WEIGHTS["WR"]["snap"], 1.0)
+
+    def test_quarterbacks_are_left_alone(self):
+        for name in self.usage.MEASURES:
+            self.assertIsNone(self.usage.MEASURES[name]["QB"], name)
+
+    def test_zero_strength_returns_the_original_board(self):
+        """k=0 must be the untouched board, or the baseline arm isn't a baseline."""
+        import usage_test
+
+        board = make_board()
+        same = usage_test.adjusted_board(2025, LEAGUE, board, 0.0)
+        self.assertIs(same, board)
+
+
+class Verifier(unittest.TestCase):
+    """The verifier has to actually verify.
+
+    Its first version parsed the wrong two columns and reported the raw points
+    total as the edge, so the check passed on a comparison it never made. A
+    verifier that cannot fail is worse than none, because it manufactures
+    confidence.
+    """
+
+    def setUp(self):
+        import verify
+
+        self.verify = verify
+
+    SAMPLE = (
+        "--- 2021 --- (name match 98%)\n"
+        "STRATEGY                  ACTUAL PTS         vs CONSENSUS\n"
+        "Wait-cost (live tool)           1565           +23 \u00b1    4\n"
+        "Consensus list                  1542            +0 \u00b1    0\n"
+        "\n"
+        "=== Across all seasons, points above simply drafting the list ===\n"
+        "STRATEGY                     MEAN   \u00b1 SE    WINS  VERDICT\n"
+        "Wait-cost (live tool)         +30      2    5/5  real\n"
+        "Consensus list                 +0      0    0/5  baseline\n"
+    )
+
+    def test_reads_the_summary_not_the_first_season_block(self):
+        self.assertEqual(self.verify.parse_backtest_summary(self.SAMPLE), (30.0, 2.0))
+
+    def test_never_returns_the_raw_points_column(self):
+        """1565 is season points, not an edge. Returning it is the old bug."""
+        mean, _se = self.verify.parse_backtest_summary(self.SAMPLE)
+        self.assertLess(abs(mean), 500)
+
+    def test_missing_summary_fails_rather_than_guessing(self):
+        no_summary = self.SAMPLE.split("=== Across")[0]
+        self.assertIsNone(self.verify.parse_backtest_summary(no_summary))
+
+    def test_a_dead_edge_is_reported_as_failure(self):
+        dead = self.SAMPLE.replace(
+            "Wait-cost (live tool)         +30      2    5/5  real",
+            "Wait-cost (live tool)          +3      5    2/5  inside the noise",
+        )
+        mean, se = self.verify.parse_backtest_summary(dead)
+        self.assertFalse(mean > 2 * se)
+
+    def test_skip_is_not_a_pass(self):
+        """An unmeasurable claim must not read as a verified one.
+
+        On a machine without the back seasons downloaded, both measurement
+        claims are unrunnable. Folding that into True would have the verifier
+        announce everything is true on a box that checked almost nothing.
+        """
+        self.assertIsNot(self.verify.SKIP, True)
+        self.assertFalse(self.verify.SKIP is True)
+        # main() splits on identity, so a truthy sentinel must still not count
+        # as a pass anywhere it is compared.
+        self.assertNotEqual(self.verify.SKIP, True)
+
+    def test_backtest_reports_missing_history_instead_of_crashing(self):
+        """The phrase verify.py keys on has to be the one backtest.py prints."""
+        import backtest
+        import inspect
+
+        src = inspect.getsource(backtest.main)
+        self.assertIn("missing back-season data", src)
+
+
+class RealDataSmoke(unittest.TestCase):
+    """Only runs when projections have been built."""
+
+    def setUp(self):
+        path = os.path.join(engine.HERE, "data", "projections.csv")
+        if not os.path.exists(path):
+            self.skipTest("run fetch_data.py && build_projections.py first")
+        self.league = engine.load_league()
+        self.board = engine.build_board(self.league, engine.load_players())
+
+    def test_board_is_populated_and_sorted(self):
+        self.assertGreater(len(self.board), 300)
+        vorps = [p.vorp for p in self.board]
+        self.assertEqual(vorps, sorted(vorps, reverse=True))
+
+    def test_configured_keeper_exists_on_the_board(self):
+        """A typo here would silently un-keep your first-round pick."""
+        names = {p.name for p in self.board}
+        for k in self.league.get("keepers", []):
+            self.assertIn(k["player"], names)
+
+    def test_scoring_matches_the_projections_on_disk(self):
+        """Editing scoring without rebuilding silently changes nothing."""
+        warning = engine.check_scoring(self.league)
+        self.assertIsNone(warning, warning)
+
+    def test_scoring_mismatch_is_detected(self):
+        import copy
+
+        bad = copy.deepcopy(self.league)
+        bad["scoring"]["pass_td"] = bad["scoring"]["pass_td"] + 2
+        self.assertIsNotNone(engine.check_scoring(bad))
+
+    def test_every_position_has_a_replacement_level(self):
+        levels = engine.replacement_levels(self.board, self.league)
+        for pos in ("QB", "RB", "WR", "TE"):
+            self.assertIn(pos, levels)
+            self.assertGreater(levels[pos], 0)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
+
+
+class NameResolution(StateIsolated):
+    """A misread name is the one draft-day error with no recovery.
+
+    Every pick after a dropped one is numbered wrong, and every survival
+    estimate is computed against the wrong clock.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.board = make_board()
+        self.d = draft_day.Draft(LEAGUE, self.board)
+
+    def test_surname_ignores_generational_suffixes(self):
+        self.assertEqual(draft_day._surname("James Cook III"), "cook")
+        self.assertEqual(draft_day._surname("Marvin Harrison Jr."), "harrison")
+        self.assertEqual(draft_day._surname("Ja'Marr Chase"), "chase")
+
+    def test_exact_surname_wins_over_other_substring_hits(self):
+        players = [
+            Player(name="Derrick Henry", pos="RB", team="BAL", adp=38.0, points=250.0),
+            Player(name="Hunter Henry", pos="TE", team="NE", adp=164.0, points=120.0),
+            Player(name="Henry Ruggs", pos="WR", team="XX", adp=300.0, points=90.0),
+        ]
+        d = draft_day.Draft(LEAGUE, engine.build_board(LEAGUE, players))
+        # Two players carry "henry" as a surname, so this must still ask rather
+        # than silently pick one.
+        got = d.find("ruggs")
+        self.assertEqual(got.name, "Henry Ruggs")
+
+    def test_unique_surname_resolves_without_a_prompt(self):
+        players = [
+            Player(name="Derrick Henry", pos="RB", team="BAL", adp=38.0, points=250.0),
+            Player(name="Henry Ruggs", pos="WR", team="XX", adp=300.0, points=90.0),
+        ]
+        d = draft_day.Draft(LEAGUE, engine.build_board(LEAGUE, players))
+        got = d.find("henry")
+        self.assertIsNotNone(got)
+        self.assertEqual(got.name, "Derrick Henry")
+
+    def test_cancelled_disambiguation_says_so(self):
+        """Backing out must be visible; a silent drop corrupts the pick count."""
+        import io
+        import contextlib
+
+        cands = [p for p in self.board if p.pos == "RB"][:3]
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            with unittest.mock.patch("builtins.input", return_value=""):
+                got = self.d._disambiguate(cands, "amb")
+        self.assertIsNone(got)
+        self.assertIn("nothing recorded", buf.getvalue())
+
+    def test_prompt_accepts_a_fuller_name_not_only_a_number(self):
+        import io
+        import contextlib
+
+        target = [p for p in self.board if p.pos == "RB"][1]
+        cands = [p for p in self.board if p.pos == "RB"][:3]
+        with contextlib.redirect_stdout(io.StringIO()):
+            with unittest.mock.patch("builtins.input", return_value=target.name):
+                got = self.d._disambiguate(cands, "amb")
+        self.assertIs(got, target)
+
+    def test_a_dropped_name_does_not_advance_the_clock(self):
+        import io
+        import contextlib
+
+        before = self.d.on_the_clock
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.d.find("zzzz nobody")
+        self.assertEqual(self.d.on_the_clock, before)
+
+
+class DisambiguationCommands(StateIsolated):
+    def setUp(self):
+        super().setUp()
+        self.d = draft_day.Draft(LEAGUE, make_board())
+
+    def test_command_word_at_the_prompt_cancels(self):
+        import io
+        import contextlib
+
+        cands = [p for p in self.d.board if p.pos == "RB"][:3]
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            with unittest.mock.patch("builtins.input", return_value="go"):
+                got = self.d._disambiguate(cands, "amb")
+        self.assertIsNone(got)
+        self.assertIn("cancelled", buf.getvalue())
+
+
+class BoardMovement(unittest.TestCase):
+    """Comparing two dated boards is only useful if it reports real moves."""
+
+    def setUp(self):
+        import movers
+
+        self.movers = movers
+
+    def _snap(self, rows):
+        return {r["name"]: dict(r) for r in rows}
+
+    def test_reports_a_real_rise_with_the_right_sign(self):
+        old = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 90.0, "points": 100.0}])
+        new = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 60.0, "points": 130.0}])
+        moved, _arr, _gone = self.movers.compare(old, new)
+        self.assertEqual(len(moved), 1)
+        shift, _o, _n = moved[0]
+        self.assertGreater(shift, 0, "moving up the board must be positive")
+        self.assertAlmostEqual(shift, 30.0)
+
+    def test_small_churn_is_ignored(self):
+        old = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 60.0, "points": 100.0}])
+        new = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 62.0, "points": 99.0}])
+        moved, _arr, _gone = self.movers.compare(old, new)
+        self.assertEqual(moved, [])
+
+    def test_undraftable_players_are_not_news(self):
+        """A receiver going from 340 to 300 is movement, not information."""
+        old = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 340.0, "points": 10.0}])
+        new = self._snap([{"name": "A", "pos": "WR", "team": "X",
+                           "adp": 300.0, "points": 12.0}])
+        moved, _arr, _gone = self.movers.compare(old, new)
+        self.assertEqual(moved, [])
+
+    def test_arrivals_and_departures_are_separated(self):
+        old = self._snap([{"name": "Gone", "pos": "RB", "team": "X",
+                           "adp": 80.0, "points": 90.0}])
+        new = self._snap([{"name": "New", "pos": "RB", "team": "X",
+                           "adp": 70.0, "points": 95.0}])
+        moved, arrived, gone = self.movers.compare(old, new)
+        self.assertEqual(moved, [])
+        self.assertEqual([r["name"] for r in arrived], ["New"])
+        self.assertEqual([r["name"] for r in gone], ["Gone"])
+
+    def test_identical_boards_produce_nothing(self):
+        rows = [{"name": "A", "pos": "WR", "team": "X", "adp": 20.0, "points": 200.0}]
+        moved, arrived, gone = self.movers.compare(self._snap(rows), self._snap(rows))
+        self.assertEqual((moved, arrived, gone), ([], [], []))
+
+
+class ReplayedBoardHasUpside(unittest.TestCase):
+    """A replayed board with no ceiling silently zeroes any upside strategy."""
+
+    def setUp(self):
+        import backtest
+
+        self.backtest = backtest
+        path = os.path.join(backtest.HIST, "ecr_2024.csv")
+        if not os.path.exists(path):
+            self.skipTest("no historical ECR on disk")
+        if not os.path.exists(os.path.join(backtest.RAW, "stats_2021.csv")):
+            self.skipTest("run 'python3 fetch_data.py history' first")
+        league = engine.load_league()
+        self.league = dict(league, keepers=[],
+                           opponent_keepers={"known": [], "unknown_count": 0})
+
+    def test_ceiling_is_populated_and_brackets_points(self):
+        """Checked over the draftable range, which is where it has to hold.
+
+        Past roughly ECR 350 the two rank functions production uses — a dense
+        sort for points, a count-ahead for ceiling and floor — can disagree by
+        one place on a tie, and floor lands about half a point above points.
+        That is inherited from build_projections rather than introduced here,
+        and it only touches players nobody in an 8-team league drafts.
+        """
+        board = self.backtest.season_board(2024, self.league)
+        skill = [p for p in board if p.pos in ("QB", "RB", "WR", "TE")]
+        draftable = [p for p in skill if p.adp <= 180]
+        self.assertTrue(draftable)
+        for p in draftable:
+            self.assertGreaterEqual(p.ceiling, p.points - 1e-6, p.name)
+            self.assertLessEqual(p.floor, p.points + 1e-6, p.name)
+        spread = sum(p.ceiling - p.points for p in skill) / len(skill)
+        self.assertGreater(spread, 1.0, "the whole board cannot have zero upside")
+
+
+class CheatSheetFreshness(unittest.TestCase):
+    """The printed sheet must report the board's real age, not a typed-in date.
+
+    It exists to tell you how current your board is. A hardcoded date meant a
+    correctly-refreshed board printed a sheet claiming to be two weeks stale.
+    """
+
+    def test_consensus_date_matches_the_built_projections(self):
+        import json
+        import cheatsheet
+
+        meta = os.path.join(engine.HERE, "data", "projections.meta.json")
+        if not os.path.exists(meta):
+            self.skipTest("run build_projections.py first")
+        with open(meta) as fh:
+            expected = json.load(fh).get("scrape_date", "")
+        if not expected:
+            self.skipTest("no scrape_date recorded")
+        self.assertEqual(cheatsheet.consensus_date(), expected)
+
+    def test_missing_metadata_says_unknown_rather_than_guessing(self):
+        import cheatsheet
+
+        original = cheatsheet.HERE
+        with tempfile.TemporaryDirectory() as tmp:
+            cheatsheet.HERE = tmp
+            try:
+                self.assertEqual(cheatsheet.consensus_date(), "unknown")
+            finally:
+                cheatsheet.HERE = original
+
+    def test_no_hardcoded_date_in_the_template(self):
+        """A literal yyyy-mm-dd in the source is how this broke the first time."""
+        import inspect
+        import re
+        import cheatsheet
+
+        src = inspect.getsource(cheatsheet.render) if hasattr(cheatsheet, "render") \
+            else open(cheatsheet.__file__).read()
+        hits = [m for m in re.findall(r"20\d\d-\d\d-\d\d", src)]
+        self.assertEqual(hits, [], f"hardcoded date(s) in cheatsheet.py: {hits}")

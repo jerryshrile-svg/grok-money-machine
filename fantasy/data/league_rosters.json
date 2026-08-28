@@ -1,0 +1,163 @@
+{
+  "Bijan MUSTAAAAAAAADD (you)": {
+    "starters": [
+      "Jayden Daniels",
+      "Bijan Robinson",
+      "Javonte Williams",
+      "Amon-Ra St. Brown",
+      "DeVonta Smith",
+      "Tyler Warren",
+      "Chase Brown"
+    ],
+    "bench": [
+      "Jaylen Waddle",
+      "Luther Burden III",
+      "Mike Evans",
+      "Jacory Croskey-Merritt",
+      "Jonathon Brooks",
+      "Parker Washington",
+      "De'Zhaun Stribling"
+    ],
+    "def": null
+  },
+  "Washington Foreskins (Bryce)": {
+    "starters": [
+      "Jaxson Dart",
+      "James Cook III",
+      "Kyren Williams",
+      "CeeDee Lamb",
+      "Jaxon Smith-Njigba",
+      "Brock Bowers",
+      "Josh Jacobs"
+    ],
+    "bench": [
+      "Quinshon Judkins",
+      "DJ Moore",
+      "Rome Odunze",
+      "KC Concepcion",
+      "Kenyon Sadiq"
+    ],
+    "def": "Rams"
+  },
+  "Aly Top/Dylan Bottom (Christian)": {
+    "starters": [
+      "Jalen Hurts",
+      "Jonathan Taylor",
+      "Kenneth Walker III",
+      "Chris Olave",
+      "Tee Higgins",
+      "Colston Loveland",
+      "Jeremiyah Love"
+    ],
+    "bench": [
+      "Tetairoa McMillan",
+      "Michael Pittman Jr.",
+      "Courtland Sutton",
+      "RJ Harvey",
+      "Makai Lemon",
+      "Jayden Reed"
+    ],
+    "def": "Steelers"
+  },
+  "Team Dumbass (Dylan)": {
+    "starters": [
+      "Dak Prescott",
+      "De'Von Achane",
+      "Cam Skattebo",
+      "Justin Jefferson",
+      "Davante Adams",
+      "Trey McBride",
+      "TreVeyon Henderson"
+    ],
+    "bench": [
+      "Carnell Tate",
+      "David Montgomery",
+      "DK Metcalf",
+      "Rachaad White",
+      "Matthew Golden",
+      "Josh Downs"
+    ],
+    "def": "Texans"
+  },
+  "I'm Your Daddy (Alex)": {
+    "starters": [
+      "Joe Burrow",
+      "Saquon Barkley",
+      "Derrick Henry",
+      "Ja'Marr Chase",
+      "Malik Nabers",
+      "Kyle Pitts Sr.",
+      "Ladd McConkey"
+    ],
+    "bench": [
+      "Travis Etienne Jr.",
+      "Alec Pierce",
+      "Rashee Rice",
+      "Rico Dowdle",
+      "J.K. Dobbins",
+      "Cyrus Allen"
+    ],
+    "def": "Seahawks"
+  },
+  "Just the Tip (Mason)": {
+    "starters": [
+      "Drake Maye",
+      "Ashton Jeanty",
+      "Omarion Hampton",
+      "Puka Nacua",
+      "George Pickens",
+      "Harold Fannin Jr.",
+      "Bucky Irving"
+    ],
+    "bench": [
+      "Garrett Wilson",
+      "Jadarian Price",
+      "Michael Wilson",
+      "Christian Watson",
+      "Brian Thomas Jr.",
+      "Blake Corum",
+      "George Kittle"
+    ],
+    "def": null
+  },
+  "College Dropout (Ben)": {
+    "starters": [
+      "Josh Allen",
+      "Christian McCaffrey",
+      "Jaylen Warren",
+      "A.J. Brown",
+      "Zay Flowers",
+      "Tucker Kraft",
+      "Emeka Egbuka"
+    ],
+    "bench": [
+      "Bhayshul Tuten",
+      "Jameson Williams",
+      "Tony Pollard",
+      "Kyle Monangai",
+      "Jakobi Meyers",
+      "Chris Godwin Jr."
+    ],
+    "def": "Broncos"
+  },
+  "Who's Your Daddy? (Matt)": {
+    "starters": [
+      "Lamar Jackson",
+      "Jahmyr Gibbs",
+      "Breece Hall",
+      "Nico Collins",
+      "Drake London",
+      "Sam LaPorta",
+      "D'Andre Swift"
+    ],
+    "bench": [
+      "Terry McLaurin",
+      "Marvin Harrison Jr.",
+      "Chuba Hubbard",
+      "Aaron Jones Sr.",
+      "Jordyn Tyson",
+      "Travis Kelce"
+    ],
+    "def": "Eagles"
+  }
+}

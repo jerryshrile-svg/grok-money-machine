@@ -1,0 +1,79 @@
+{
+  "name": "8-Team 0.5 PPR Keeper League",
+  "teams": 8,
+  "my_draft_slot": 6,
+  "rounds": 14,
+  "roster": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 1,
+    "K": 1,
+    "DEF": 1,
+    "BN": 5,
+    "IR": 1
+  },
+  "flex_eligible": [
+    "RB",
+    "WR",
+    "TE"
+  ],
+  "scoring": {
+    "pass_yd": 0.04,
+    "pass_td": 4.0,
+    "pass_int": -1.0,
+    "rush_yd": 0.1,
+    "rush_td": 6.0,
+    "rec": 0.5,
+    "rec_yd": 0.1,
+    "rec_td": 6.0,
+    "fumble_lost": -2.0,
+    "two_pt": 2.0
+  },
+  "keepers": [
+    {
+      "team": "ME",
+      "player": "Bijan Robinson",
+      "round": 1,
+      "pick_overall": 6
+    }
+  ],
+  "//opponent_keepers": [
+    "A keeper costs the round that player was drafted in last year, so the pick it",
+    "burns varies per player. `keepers.py` ranks who is most likely kept by surplus.",
+    "Fill `known` with real names as you learn them; `unknown_count` is how many of",
+    "the other seven teams you expect to keep somebody."
+  ],
+  "opponent_keepers": {
+    "known": [
+      "Jaxon Smith-Njigba",
+      "Jahmyr Gibbs",
+      "Matthew Golden",
+      "Josh Allen",
+      "Rashee Rice",
+      "Cam Skattebo",
+      "A.J. Brown"
+    ],
+    "unknown_count": 0,
+    "pool_top_n": 14
+  },
+  "//schedule": [
+    "Fantasy regular season is weeks 1-14; the 6-team bracket runs 15-16-17 with",
+    "byes for the top two seeds. Week 17 ends Monday 2027-01-04, which matches the",
+    "league's stated playoff end date. NFL week 18 is not used."
+  ],
+  "playoff_weeks": [
+    15,
+    16,
+    17
+  ],
+  "regular_season_last_week": 14,
+  "//replacement_depth": [
+    "Optional: positional rank to use as the replacement baseline, overriding the",
+    "default last-starter choice. Deliberately NOT set. Backtesting five seasons",
+    "with waiver-depth baselines (QB10 RB32 WR48 TE10) rescued naive value-chasing",
+    "but made the wait-cost rule worse: +44 over the consensus list falling to +24,",
+    "and 4 winning seasons of 5 falling to 3. Left off on that evidence."
+  ]
+}

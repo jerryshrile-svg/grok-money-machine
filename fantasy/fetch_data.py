@@ -1,0 +1,119 @@
+"""Download free NFL + fantasy data. No API keys, no scraping, no auth.
+
+Everything here is published as plain files on GitHub by two open-data projects:
+
+  nflverse (github.com/nflverse)          — official play-by-play, weekly player
+                                            stats, snap counts, rosters, injuries
+  DynastyProcess (github.com/dynastyprocess) — weekly FantasyPros expert consensus
+                                            rankings + a cross-platform player ID
+                                            map that includes Yahoo IDs
+
+    python3 fetch_data.py            # everything the draft tools need (~37 MB)
+    python3 fetch_data.py rankings   # just the rankings (fast, do this pre-draft)
+    python3 fetch_data.py history    # older seasons, for backtest.py and validate.py
+
+`history` is a separate group because nothing on draft day needs it — it is the
+back seasons the measurement scripts replay, and it roughly doubles the download.
+Skip it and the draft tools work fine; `verify.py` will say those two claims
+could not be re-measured rather than pretending they passed.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+import urllib.request
+
+from engine import HERE
+
+RAW = os.path.join(HERE, "data", "raw")
+
+NFLVERSE = "https://github.com/nflverse/nflverse-data/releases/download"
+DP = "https://raw.githubusercontent.com/dynastyprocess/data/master/files"
+
+# Seasons of actual results used to calibrate the rank -> points curve.
+SEASONS = (2023, 2024, 2025)
+
+# backtest.py replays 2021-2025 and builds each season's curve from the three
+# before it, so it reaches back to 2018. validate.py needs expected points for
+# every season it compares consecutively.
+HISTORY_STATS = (2018, 2019, 2020, 2021, 2022)
+HISTORY_EP = (2022, 2023, 2024)
+# usage_test.py judges each replayed season on the one before it, so it needs
+# snap counts back to 2020.
+HISTORY_SNAPS = (2020, 2021, 2022, 2023, 2024)
+FFOPP = ("https://github.com/ffverse/ffopportunity/releases/download/"
+         "latest-data/ep_weekly_{y}.csv")
+
+SOURCES: dict[str, list[tuple[str, str]]] = {
+    "rankings": [
+        (f"{DP}/db_fpecr_latest.csv", "fp_ecr.csv"),
+        (f"{DP}/db_playerids.csv", "player_ids.csv"),
+    ],
+    "stats": [
+        (f"{NFLVERSE}/stats_player/stats_player_week_{y}.csv", f"stats_{y}.csv")
+        for y in SEASONS
+    ],
+    "usage": [
+        (f"{NFLVERSE}/snap_counts/snap_counts_2025.csv", "snap_counts_2025.csv"),
+        (FFOPP.format(y=2025), "expected_points_2025.csv"),
+    ],
+    "schedule": [
+        ("https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv",
+         "schedule_2026.csv"),
+    ],
+    "context": [
+        (f"{NFLVERSE}/injuries/injuries_2025.csv", "injuries_2025.csv"),
+        (f"{NFLVERSE}/rosters/roster_2025.csv", "roster_2025.csv"),
+    ],
+    "history": [
+        (f"{NFLVERSE}/stats_player/stats_player_week_{y}.csv", f"stats_{y}.csv")
+        for y in HISTORY_STATS
+    ] + [
+        (FFOPP.format(y=y), f"expected_points_{y}.csv") for y in HISTORY_EP
+    ] + [
+        (f"{NFLVERSE}/snap_counts/snap_counts_{y}.csv", f"snap_counts_{y}.csv")
+        for y in HISTORY_SNAPS
+    ],
+}
+
+# `python3 fetch_data.py` with no arguments gets what draft day needs. History is
+# opt-in: it doubles the download and no draft-day command reads it.
+DEFAULT_GROUPS = [g for g in SOURCES if g != "history"]
+
+
+def download(url: str, dest: str) -> bool:
+    path = os.path.join(RAW, dest)
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "ff-toolkit"})
+        with urllib.request.urlopen(req, timeout=120) as resp, open(path, "wb") as fh:
+            fh.write(resp.read())
+    except Exception as exc:  # noqa: BLE001 - report and continue to next file
+        print(f"  FAIL  {dest:<28} {type(exc).__name__}: {exc}")
+        return False
+    print(f"  ok    {dest:<28} {os.path.getsize(path) / 1e6:>7.1f} MB")
+    return True
+
+
+def main(groups: list[str]) -> int:
+    os.makedirs(RAW, exist_ok=True)
+    failed = 0
+    for group in groups:
+        if group not in SOURCES:
+            print(f"unknown group '{group}' (have: {', '.join(SOURCES)})")
+            return 2
+        print(f"\n{group}:")
+        for url, dest in SOURCES[group]:
+            if not download(url, dest):
+                failed += 1
+    print(f"\n-> {RAW}")
+    if failed:
+        print(f"{failed} file(s) failed — a source may have renamed an asset.")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:] or DEFAULT_GROUPS
+    if args == ["all"]:
+        args = list(SOURCES)
+    sys.exit(main(args))

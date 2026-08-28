@@ -1,0 +1,15 @@
+{
+  "note": "Shape only, recorded 15 Aug from Yahoo's preseason bracket screen. Every slot was TBD -- seeds are set by week-14 standings, which haven't happened. Nothing here should be treated as a prediction of who plays whom.",
+  "structure": {
+    "championship_bracket": {
+      "teams": 6,
+      "week_15_quarterfinals": 4,
+      "byes": 2,
+      "note": "4 QF boxes shown, 2 held a single team (no opponent) -- read as byes for the top 2 seeds into the week-16 semifinal. The other 2 QF boxes each held two TBD teams -- seeds 3-6 play those."
+    },
+    "consolation_bracket": {
+      "teams": 2,
+      "note": "the 2 teams outside the top 6 play their own bracket in weeks 15-17; league.json's regular_season_last_week=14 and playoff_weeks=[15,16,17] already assumed this shape"
+    }
+  }
+}

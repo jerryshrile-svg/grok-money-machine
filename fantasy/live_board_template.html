@@ -1,0 +1,482 @@
+<title>Live Draft Board</title>
+<style>
+:root{
+  --bg:#F3F4F1; --panel:#FFFFFF; --panel2:#E9EBE6; --ink:#14181A; --ink2:#5A625F;
+  --ink3:#868D89; --line:#D3D7D1; --line2:#B6BCB5;
+  --turf:#1F5C3A; --turf-soft:#E2EDE6;
+  --now:#A93226; --now-soft:#F7E5E2;
+  --hold:#2E7D4F; --hold-soft:#E1EFE7;
+  --warn:#8A5E0F; --warn-soft:#F5EDDA;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1113; --panel:#171B1D; --panel2:#1F2426; --ink:#E9EBE7; --ink2:#A5ADA9;
+  --ink3:#7B8380; --line:#282E30; --line2:#3A4144;
+  --turf:#63B489; --turf-soft:#15271E;
+  --now:#E5806F; --now-soft:#2C1A17;
+  --hold:#5FB585; --hold-soft:#13241B;
+  --warn:#D4A552; --warn-soft:#251F16;
+}}
+:root[data-theme="dark"]{
+  --bg:#0E1113; --panel:#171B1D; --panel2:#1F2426; --ink:#E9EBE7; --ink2:#A5ADA9;
+  --ink3:#7B8380; --line:#282E30; --line2:#3A4144;
+  --turf:#63B489; --turf-soft:#15271E;
+  --now:#E5806F; --now-soft:#2C1A17;
+  --hold:#5FB585; --hold-soft:#13241B;
+  --warn:#D4A552; --warn-soft:#251F16;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+     font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:14px 14px 80px;display:flex;
+      flex-direction:column;gap:12px}
+
+header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;
+     border-bottom:2px solid var(--ink);padding-bottom:8px}
+header.top h1{font-size:1.05rem;margin:0;letter-spacing:-.01em}
+header.top .meta{font-family:var(--mono);font-size:.72rem;color:var(--ink3)}
+
+.clock{background:var(--panel);border:1px solid var(--line);border-radius:4px;
+   padding:12px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px}
+.clock.mine{background:var(--turf-soft);border-color:var(--turf)}
+.clock .big{font-size:1.5rem;font-weight:700;letter-spacing:-.02em;
+   font-variant-numeric:tabular-nums}
+.clock .sub{color:var(--ink2);font-size:.86rem}
+.clock .tag{font-family:var(--mono);font-size:.7rem;padding:.15rem .5rem;
+   border-radius:3px;background:var(--turf);color:var(--bg);font-weight:700;
+   letter-spacing:.06em}
+
+.entry{display:flex;gap:8px;flex-wrap:wrap}
+#q{flex:1;min-width:220px;font-size:1.05rem;padding:11px 12px;border-radius:4px;
+   border:1px solid var(--line2);background:var(--panel);color:var(--ink);
+   font-family:var(--sans)}
+#q:focus{outline:2px solid var(--turf);outline-offset:1px}
+button{font-family:var(--sans);font-size:.9rem;padding:10px 14px;border-radius:4px;
+   border:1px solid var(--line2);background:var(--panel2);color:var(--ink);
+   cursor:pointer;font-weight:600}
+button:hover{border-color:var(--turf)}
+button:focus-visible{outline:2px solid var(--turf);outline-offset:1px}
+button.primary{background:var(--turf);color:var(--bg);border-color:var(--turf)}
+
+#hits{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+#hits li{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:4px;
+   background:var(--panel);border:1px solid var(--line);cursor:pointer}
+#hits li:hover,#hits li.sel{border-color:var(--turf);background:var(--turf-soft)}
+#hits .nm{font-weight:600;flex:1}
+#hits .dt{font-family:var(--mono);font-size:.74rem;color:var(--ink3)}
+
+.msg{font-family:var(--mono);font-size:.78rem;padding:8px 11px;border-radius:4px}
+.msg.warn{background:var(--warn-soft);color:var(--warn)}
+.msg.err{background:var(--now-soft);color:var(--now)}
+.msg.ok{background:var(--hold-soft);color:var(--hold)}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;
+   padding:12px 14px}
+.panel h2{margin:0 0 8px;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
+   color:var(--ink3);font-weight:700}
+
+.verdict{font-size:1.1rem;font-weight:650;margin:0 0 10px;line-height:1.35}
+.verdict b{color:var(--turf)}
+
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem;min-width:560px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);
+   font-weight:700;border-bottom:1px solid var(--line2)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+tr.top td{background:var(--turf-soft)}
+tr:last-child td{border-bottom:none}
+.pill{font-family:var(--mono);font-size:.68rem;padding:.1rem .4rem;border-radius:3px}
+.pill.gone{background:var(--now-soft);color:var(--now)}
+.pill.safe{background:var(--hold-soft);color:var(--hold)}
+.ly.hot{color:var(--warn)} .ly.cold{color:var(--hold)}
+.take{font-family:var(--mono);font-size:.7rem;color:var(--turf);cursor:pointer;
+   border:1px solid var(--turf);border-radius:3px;padding:.1rem .45rem;background:none}
+
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.needs{display:flex;flex-wrap:wrap;gap:5px}
+.need{font-family:var(--mono);font-size:.74rem;padding:.2rem .5rem;border-radius:3px;
+   background:var(--panel2);border:1px solid var(--line)}
+.need.open{background:var(--now-soft);color:var(--now);border-color:var(--now)}
+.need.done{color:var(--ink3)}
+ol.log{margin:0;padding-left:1.4rem;font-size:.82rem;color:var(--ink2);
+   max-height:210px;overflow-y:auto}
+ol.log li{padding:1px 0}
+ol.log li.me{color:var(--turf);font-weight:650}
+ol.log li.kp{color:var(--warn)}
+.rosterlist{list-style:none;margin:0;padding:0;font-size:.85rem}
+.rosterlist li{display:flex;gap:8px;padding:2px 0;border-bottom:1px solid var(--line)}
+.rosterlist .pp{font-family:var(--mono);font-size:.72rem;color:var(--ink3);width:3.4rem}
+footer{color:var(--ink3);font-size:.74rem;font-family:var(--mono);text-align:center}
+.hide{display:none}
+@media (max-width:560px){
+  .clock .big{font-size:1.25rem}
+  table{font-size:.82rem}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Live Draft Board</h1>
+    <div class="meta" id="hdr"></div>
+  </header>
+
+  <div class="clock" id="clock"></div>
+
+  <div class="entry">
+    <input id="q" autocomplete="off" autocapitalize="off" autocorrect="off"
+           spellcheck="false" placeholder="Type a name who just got picked…">
+    <button id="undo">Undo</button>
+    <button id="reset">Reset</button>
+  </div>
+  <div id="msg"></div>
+  <ul id="hits"></ul>
+
+  <div class="panel" id="rec"></div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Your roster</h2>
+      <div class="needs" id="needs"></div>
+      <ul class="rosterlist" id="roster"></ul>
+    </div>
+    <div class="panel">
+      <h2>Picks so far</h2>
+      <ol class="log" id="log"></ol>
+    </div>
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script id="boarddata" type="application/json">__DATA__</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("boarddata").textContent);
+const LG = D.league, PLAYERS = D.players, MYPICKS = D.myPicks;
+const TEAMS = LG.teams, ROUNDS = LG.rounds, MYSLOT = LG.slot;
+const FLEX_OK = new Set(LG.flex);
+const KEEPER_NAMES = new Set(D.keepers.map(k => k.player));
+const KEEPER_AT = {};
+D.keepers.forEach(k => { KEEPER_AT[k.pick_overall] = k; });
+
+/* ---- opponent model, ported from opponent.py ---- */
+const ADP_NOISE=8.0, NEED_BONUS=22.0, FLEX_BONUS=8.0, BACKUP_PENALTY=12.0;
+const RUN_WEIGHT=1.5, RUN_WINDOW=8, RUN_CAP=3, KDEF_LAST_ROUNDS=3;
+const DEPTH_WEIGHT=0.35, BACKUP_WEIGHT=0.35;
+const POS_CAP={QB:2,TE:2,K:1,DEF:1,RB:7,WR:8};
+const TRIALS=150;
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(rnd,sd){ // Box-Muller
+  let u=0,v=0; while(u===0)u=rnd(); while(v===0)v=rnd();
+  return sd*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+function slotForPick(pick,teams){
+  const r=Math.floor((pick-1)/teams), i=(pick-1)%teams;
+  return (r%2===0)? i+1 : teams-i;
+}
+function starterNeeds(counts){
+  const R=LG.roster, need={};
+  ["QB","RB","WR","TE","K","DEF"].forEach(p=>{need[p]=Math.max(0,(R[p]||0)-(counts[p]||0));});
+  let surplus=0; FLEX_OK.forEach(p=>{surplus+=Math.max(0,(counts[p]||0)-(R[p]||0));});
+  need.FLEX=Math.max(0,(R.FLEX||0)-surplus);
+  return need;
+}
+function fillsNeed(pos,need){
+  if((need[pos]||0)>0) return true;
+  return FLEX_OK.has(pos) && (need.FLEX||0)>0;
+}
+function valueWeight(pos,need){
+  if((need[pos]||0)>0) return 1.0;
+  if(FLEX_OK.has(pos)) return (need.FLEX||0)>0 ? 1.0 : DEPTH_WEIGHT;
+  return BACKUP_WEIGHT;
+}
+function pressure(recent,pos){
+  let c=0; for(const x of recent) if(x===pos) c++;
+  return Math.min(c,RUN_CAP);
+}
+function choose(pool,counts,roundNo,rnd,recent){
+  if(!pool.length) return null;
+  const roundsLeft=ROUNDS-roundNo+1, need=starterNeeds(counts);
+  let holes=0; for(const k in need) holes+=need[k];
+  const forced = roundsLeft<=holes;
+  let best=null,bestScore=Infinity,fb=null,fbScore=Infinity;
+  for(const p of pool){
+    const pos=p.p;
+    if((counts[pos]||0)>=(POS_CAP[pos]||8)) continue;
+    if((pos==="K"||pos==="DEF") && roundsLeft>KDEF_LAST_ROUNDS) continue;
+    let score=p.a+gauss(rnd,ADP_NOISE);
+    const f=fillsNeed(pos,need);
+    if(f) score-= (need[pos]||0)>0 ? NEED_BONUS : FLEX_BONUS;
+    else if(pos==="QB"||pos==="TE"||pos==="K"||pos==="DEF")
+      score+=BACKUP_PENALTY*Math.max(1,counts[pos]||0);
+    score-=RUN_WEIGHT*pressure(recent,pos);
+    if(score<fbScore){fb=p;fbScore=score;}
+    if(forced && !f) continue;
+    if(score<bestScore){best=p;bestScore=score;}
+  }
+  return best||fb||pool[0];
+}
+
+/* ---- draft state ---- */
+const KEY="liveboard.v1";
+let picks=[];   // [{pick, name, mine}]
+const BYNAME={}; PLAYERS.forEach(p=>BYNAME[p.n]=p);
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify({picks}));}catch(e){}}
+function load(){try{const s=localStorage.getItem(KEY);if(s)picks=JSON.parse(s).picks||[];}catch(e){}}
+
+const onClock=()=>picks.length+1;
+const curRound=()=>Math.floor((onClock()-1)/TEAMS)+1;
+const drafted=()=>new Set(picks.map(p=>p.name));
+function available(){
+  const t=drafted();
+  return PLAYERS.filter(p=>!t.has(p.n)&&!KEEPER_NAMES.has(p.n));
+}
+function myRoster(){return picks.filter(p=>p.mine).map(p=>BYNAME[p.name]).filter(Boolean);}
+function myCounts(){const c={};myRoster().forEach(p=>{c[p.p]=(c[p.p]||0)+1;});return c;}
+function nextPick(after){
+  const a=(after===undefined)?onClock()-1:after;
+  for(const p of MYPICKS){ if(p>a && !KEEPER_AT[p]) return p; }
+  return null;
+}
+function autoAdvance(){
+  let changed=true;
+  while(changed){
+    changed=false;
+    const k=KEEPER_AT[onClock()];
+    if(k && !drafted().has(k.player)){
+      picks.push({pick:onClock(),name:k.player,mine:k.team==="ME",keeper:true});
+      changed=true;
+    }
+  }
+}
+function record(p,mine){
+  picks.push({pick:onClock(),name:p.n,mine});
+  autoAdvance(); save(); render();
+}
+
+/* ---- survival + recommendation ---- */
+function opponentRosters(){
+  const r={}; for(let s=1;s<=TEAMS;s++) r[s]={};
+  picks.forEach(e=>{
+    const s=slotForPick(e.pick,TEAMS);
+    if(s===MYSLOT) return;
+    const pl=BYNAME[e.name]; if(!pl) return;
+    r[s][pl.p]=(r[s][pl.p]||0)+1;
+  });
+  return r;
+}
+function recentPositions(){
+  const out=[];
+  picks.slice(-RUN_WINDOW).forEach(e=>{const pl=BYNAME[e.name]; if(pl) out.push(pl.p);});
+  return out;
+}
+function survival(horizon){
+  const all=available(), probs={};
+  all.forEach(p=>probs[p.n]=1);
+  if(horizon<=0) return probs;
+  const contenders=all.slice().sort((a,b)=>a.a-b.a).slice(0,horizon*5+40);
+  const base=opponentRosters(), start=onClock(), rec0=recentPositions();
+  const survived={}; contenders.forEach(p=>survived[p.n]=0);
+  const rnd=mulberry32(1234);
+  for(let t=0;t<TRIALS;t++){
+    const pool=contenders.slice();
+    const rost={}; for(const s in base) rost[s]=Object.assign({},base[s]);
+    const recent=rec0.slice();
+    for(let step=0;step<horizon;step++){
+      const overall=start+step, slot=slotForPick(overall,TEAMS);
+      const rn=Math.floor((overall-1)/TEAMS)+1;
+      const pick=choose(pool,rost[slot],rn,rnd,recent);
+      if(!pick) break;
+      rost[slot][pick.p]=(rost[slot][pick.p]||0)+1;
+      recent.push(pick.p); if(recent.length>RUN_WINDOW) recent.shift();
+      pool.splice(pool.indexOf(pick),1);
+    }
+    pool.forEach(p=>survived[p.n]++);
+  }
+  contenders.forEach(p=>probs[p.n]=survived[p.n]/TRIALS);
+  return probs;
+}
+function recommend(){
+  const cur=onClock(), nxt=nextPick(cur);
+  const horizon = nxt===null ? 0 : nxt-cur-1;
+  const probs=survival(horizon);
+  const avail=available(), need=starterNeeds(myCounts());
+  const expNext={};
+  ["QB","RB","WR","TE"].forEach(pos=>{
+    const pool=avail.filter(p=>p.p===pos).sort((a,b)=>b.v-a.v);
+    let ev=0,carry=1;
+    for(const p of pool.slice(0,25)){
+      const s=probs[p.n]===undefined?1:probs[p.n];
+      ev+=carry*s*p.v; carry*=(1-s);
+      if(carry<0.001) break;
+    }
+    expNext[pos]=ev;
+  });
+  const rows=[];
+  avail.forEach(p=>{
+    if(p.p==="K"||p.p==="DEF") return;
+    const cost=p.v-(expNext[p.p]||0);
+    rows.push({p,cost,score:cost*valueWeight(p.p,need),
+               s:probs[p.n]===undefined?1:probs[p.n]});
+  });
+  rows.sort((a,b)=>b.score-a.score);
+  return {rows,horizon,nxt,cur,need};
+}
+
+/* ---- name matching ---- */
+function findMatches(q){
+  q=q.trim().toLowerCase();
+  if(!q) return [];
+  const av=available();
+  const exact=av.filter(p=>p.n.toLowerCase()===q);
+  if(exact.length) return exact;
+  const sub=av.filter(p=>p.n.toLowerCase().includes(q));
+  if(sub.length===1) return sub;
+  if(sub.length>1){
+    const sur=sub.filter(p=>surname(p.n)===q);
+    if(sur.length===1) return sur;
+    return sub.sort((a,b)=>a.a-b.a).slice(0,8);
+  }
+  return av.filter(p=>surname(p.n).startsWith(q)||p.n.toLowerCase().startsWith(q))
+           .sort((a,b)=>a.a-b.a).slice(0,8);
+}
+const SUFFIX=new Set(["jr","jr.","sr","sr.","ii","iii","iv","v"]);
+function surname(n){
+  const w=n.toLowerCase().split(/\s+/).filter(x=>!SUFFIX.has(x));
+  return w.length?w[w.length-1]:"";
+}
+
+/* ---- rendering ---- */
+const $=id=>document.getElementById(id);
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+function render(){
+  const cur=onClock(), mine=MYPICKS.includes(cur)&&!KEEPER_AT[cur];
+  const nxt=nextPick(cur);
+  $("hdr").textContent=`${TEAMS} teams · 0.5 PPR · slot ${MYSLOT} · consensus ${D.scraped}`;
+
+  const c=$("clock"); c.className="clock"+(mine?" mine":"");
+  c.innerHTML = cur>TEAMS*ROUNDS
+    ? `<span class="big">Draft complete</span>`
+    : `${mine?'<span class="tag">YOU’RE UP</span>':""}
+       <span class="big">Pick ${cur}</span>
+       <span class="sub">round ${curRound()}${mine?"":" — not yours"}</span>
+       <span class="sub">${nxt?`your next pick: <b>${nxt}</b> (${nxt-cur-(mine?0:1)} away)`:"no picks left"}</span>`;
+
+  // needs
+  const need=starterNeeds(myCounts());
+  $("needs").innerHTML=["QB","RB","WR","TE","FLEX","K","DEF"].map(p=>{
+    const v=need[p]||0;
+    return `<span class="need ${v>0?"open":"done"}">${p}${v>0?" ×"+v:" ✓"}</span>`;
+  }).join("");
+
+  // roster
+  const mr=picks.filter(p=>p.mine);
+  $("roster").innerHTML = mr.length? mr.map(e=>{
+    const pl=BYNAME[e.name]; if(!pl) return "";
+    return `<li><span class="pp">${pl.p}${pl.pr}</span><span>${esc(pl.n)}</span></li>`;
+  }).join("") : `<li style="color:var(--ink3);border:none">nothing yet</li>`;
+
+  // log
+  $("log").innerHTML=picks.slice().reverse().map(e=>{
+    const cls=e.keeper?"kp":(e.mine?"me":"");
+    return `<li class="${cls}" value="${e.pick}">${esc(e.name)}${e.keeper?" (keeper)":(e.mine?" ← you":"")}</li>`;
+  }).join("");
+
+  renderRec(mine);
+  $("foot").textContent=`${picks.length} picks recorded · saved in this browser · board ${D.scraped}`;
+}
+
+function renderRec(mine){
+  const box=$("rec");
+  if(onClock()>TEAMS*ROUNDS){box.innerHTML="<h2>Done</h2><p>Draft complete.</p>";return;}
+  const t0=performance.now();
+  const {rows,horizon,nxt,need}=recommend();
+  const ms=Math.round(performance.now()-t0);
+  const rl=ROUNDS-curRound()+1, must=(need.K||0)+(need.DEF||0);
+  let warn="";
+  if(mine && rl<=must) warn=`<div class="msg err">Take a ${need.K?"K":"DEF"} now — only ${rl} picks left and you still need ${must}.</div>`;
+
+  const head = mine
+    ? `<h2>Your pick — ranked by wait cost</h2>`
+    : `<h2>If the pick were yours right now</h2>`;
+  const top=rows[0];
+  const verdict = mine && top
+    ? `<p class="verdict">Take <b>${esc(top.p.n)}</b> — ${top.p.p}${top.p.pr}, wait cost ${top.cost>=0?"+":""}${top.cost.toFixed(1)}${nxt?`, ${Math.round(top.s*100)}% to survive to ${nxt}`:""}.</p>`
+    : "";
+
+  box.innerHTML = head + warn + verdict + `<div class="tblwrap"><table>
+    <thead><tr><th>Player</th><th>Pos</th><th class="n">Tier</th><th class="n">VORP</th>
+    <th class="n">Survive</th><th class="n">Wait cost</th><th class="n">LY</th><th></th></tr></thead>
+    <tbody>${rows.slice(0,12).map((r,i)=>{
+      const p=r.p, gone=r.s<0.2, safe=r.s>0.8;
+      const ly = p.ly===null||p.ly===undefined ? "" :
+        `<span class="ly ${p.ly>1.5?"hot":(p.ly<-1.5?"cold":"")}">${p.ly>=0?"+":""}${p.ly.toFixed(1)}</span>`;
+      return `<tr class="${i===0&&mine?"top":""}">
+        <td>${esc(p.n)}</td><td>${p.p}${p.pr}</td><td class="n">${p.ti}</td>
+        <td class="n">${p.v.toFixed(1)}</td>
+        <td class="n">${horizon?Math.round(r.s*100)+"%":"—"}</td>
+        <td class="n"><b>${r.cost>=0?"+":""}${r.cost.toFixed(1)}</b></td>
+        <td class="n">${ly}</td>
+        <td>${gone?'<span class="pill gone">going</span>':(safe?'<span class="pill safe">can wait</span>':"")}
+            <button class="take" data-take="${esc(p.n)}">${mine?"I took him":"drafted"}</button></td>
+      </tr>`;}).join("")}</tbody></table></div>
+    <div class="msg" style="color:var(--ink3)">wait cost = his value minus what you'd expect at this position at pick ${nxt||"—"} · ${TRIALS} sims in ${ms}ms</div>`;
+
+  box.querySelectorAll("[data-take]").forEach(b=>{
+    b.onclick=()=>{const p=BYNAME[b.dataset.take]; if(p) record(p,MYPICKS.includes(onClock()));};
+  });
+}
+
+/* ---- input ---- */
+let sel=0, current=[];
+function showHits(){
+  const q=$("q").value;
+  current=findMatches(q);
+  const mineNow=MYPICKS.includes(onClock())&&!KEEPER_AT[onClock()];
+  $("hits").innerHTML=current.map((p,i)=>
+    `<li class="${i===sel?"sel":""}" data-i="${i}">
+      <span class="nm">${esc(p.n)}</span>
+      <span class="dt">${p.p}${p.pr} · ${esc(p.t)} · ECR ${p.a}</span>
+      <span class="dt">${mineNow?"→ yours":"→ drafted"}</span></li>`).join("");
+  $("hits").querySelectorAll("li").forEach(li=>{
+    li.onclick=()=>pick(current[+li.dataset.i]);
+  });
+}
+function pick(p){
+  if(!p) return;
+  const mineNow=MYPICKS.includes(onClock())&&!KEEPER_AT[onClock()];
+  record(p,mineNow);
+  $("q").value=""; sel=0; showHits(); $("q").focus();
+  $("msg").innerHTML=`<div class="msg ok">recorded: ${esc(p.n)}${mineNow?" — yours":""}</div>`;
+  setTimeout(()=>{$("msg").innerHTML="";},2500);
+}
+$("q").addEventListener("input",()=>{sel=0;showHits();});
+$("q").addEventListener("keydown",e=>{
+  if(e.key==="ArrowDown"){sel=Math.min(sel+1,current.length-1);showHits();e.preventDefault();}
+  else if(e.key==="ArrowUp"){sel=Math.max(sel-1,0);showHits();e.preventDefault();}
+  else if(e.key==="Enter"){
+    if(current.length===0){$("msg").innerHTML='<div class="msg err">no match — nothing recorded</div>';return;}
+    if(current.length>1&&sel===0&&$("q").value.trim().length<3){
+      $("msg").innerHTML='<div class="msg warn">several matches — pick one or type more</div>';return;}
+    pick(current[sel]); e.preventDefault();
+  }
+});
+$("undo").onclick=()=>{
+  if(!picks.length) return;
+  picks.pop();
+  while(picks.length&&picks[picks.length-1].keeper) picks.pop();
+  save(); render();
+};
+$("reset").onclick=()=>{
+  if(!confirm("Clear the whole draft?")) return;
+  picks=[]; autoAdvance(); save(); render();
+};
+
+load(); autoAdvance(); save(); render(); $("q").focus();
+</script>

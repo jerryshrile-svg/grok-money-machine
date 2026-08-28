@@ -1,0 +1,184 @@
+<title>Draft Day — 8-Team 0.5 PPR, Pick 6</title>
+<style>
+:root {
+  --ground:#EFF3F6; --surface:#FFFFFF; --ink:#0C1216; --muted:#5A6771;
+  --line:#CFD8DF; --soft:#E7EDF1;
+  --accent:#A6331B; --hot:#8A5A0C; --cold:#0B6154;
+  --hot-bg:#F7EBD6; --cold-bg:#D9EEE9;
+}
+@media (prefers-color-scheme:dark) {
+  :root {
+    --ground:#0D1216; --surface:#151B21; --ink:#E3EAEF; --muted:#8B97A2;
+    --line:#2B343C; --soft:#1E262D;
+    --accent:#E4735A; --hot:#D6A24A; --cold:#4FBFA8;
+    --hot-bg:#2C2415; --cold-bg:#12302B;
+  }
+}
+:root[data-theme="light"] {
+  --ground:#EFF3F6; --surface:#FFFFFF; --ink:#0C1216; --muted:#5A6771;
+  --line:#CFD8DF; --soft:#E7EDF1;
+  --accent:#A6331B; --hot:#8A5A0C; --cold:#0B6154;
+  --hot-bg:#F7EBD6; --cold-bg:#D9EEE9;
+}
+:root[data-theme="dark"] {
+  --ground:#0D1216; --surface:#151B21; --ink:#E3EAEF; --muted:#8B97A2;
+  --line:#2B343C; --soft:#1E262D;
+  --accent:#E4735A; --hot:#D6A24A; --cold:#4FBFA8;
+  --hot-bg:#2C2415; --cold-bg:#12302B;
+}
+
+html, body {
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo,
+          Consolas, "Liberation Mono", monospace;
+}
+
+* { box-sizing:border-box; }
+body {
+  margin:0; padding:28px 20px 64px;
+  background:var(--ground); color:var(--ink);
+  font-family:var(--mono);
+  font-size:13px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.sheet { max-width:1180px; margin:0 auto; display:flex; flex-direction:column; gap:22px; }
+
+header { display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px 24px;
+  border-bottom:2px solid var(--ink); padding-bottom:12px; }
+h1 { margin:0; font-size:26px; font-weight:700; letter-spacing:-.02em;
+  text-wrap:balance; }
+h1 em { font-style:normal; color:var(--accent); }
+.meta { color:var(--muted); font-size:11.5px; letter-spacing:.04em;
+  text-transform:uppercase; margin-left:auto; text-align:right; }
+
+.rule { background:var(--surface); border:1px solid var(--line);
+  border-left:4px solid var(--accent); padding:14px 18px; }
+.rule b { display:block; font-size:15px; letter-spacing:-.01em; }
+.rule span { color:var(--muted); }
+
+.picks { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.picks h3 { margin:0; font-size:11.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); }
+.picks ul { display:flex; gap:6px; flex-wrap:wrap; list-style:none; margin:0; padding:0; }
+.picks li { background:var(--surface); border:1px solid var(--line);
+  padding:4px 10px; font-variant-numeric:tabular-nums; font-weight:600; }
+.picks li.keeper { background:var(--accent); border-color:var(--accent);
+  color:#fff; }
+
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; }
+@media (min-width:980px) {
+  .grid { grid-template-columns:1fr 1fr 1fr; align-items:start; }
+}
+.stack { display:flex; flex-direction:column; gap:14px; }
+.pos { background:var(--surface); border:1px solid var(--line); break-inside:avoid; }
+.pos h2 { margin:0; padding:9px 12px; font-size:12px; letter-spacing:.12em;
+  text-transform:uppercase; border-bottom:1px solid var(--line);
+  background:var(--soft); }
+table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums;
+  font-size:12px; table-layout:fixed; }
+th, td { text-align:left; padding:3.5px 7px; }
+thead th { font-size:10px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--muted); font-weight:500; border-bottom:1px solid var(--soft);
+  white-space:nowrap; }
+tbody tr:not(.tier-head):hover { background:var(--soft); }
+.tier-head th { font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--accent); font-weight:700; padding:9px 8px 3px;
+  border-top:1px solid var(--line); }
+.pos tbody tr:first-child th { border-top:none; }
+.rk { color:var(--muted); width:34px; font-size:10.5px; }
+.nm { font-weight:600; letter-spacing:-.015em; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+.num { text-align:right; width:34px; }
+.po-cell { width:56px; text-align:right; }
+.po { font-size:10.5px; color:var(--muted); }
+.po.easy { color:var(--cold); font-weight:600; }
+.po.hard { color:var(--hot); font-weight:600; }
+.kept { display:inline-block; margin-left:5px; padding:0 3px; font-size:9px;
+  font-weight:700; border-radius:2px; background:var(--accent); color:#fff;
+  vertical-align:1px; }
+tr.gone .nm, tr.gone .rk, tr.gone .num { opacity:.45; }
+.ly { width:46px; text-align:right; }
+.chip { display:inline-block; padding:1px 5px; font-size:10.5px; font-weight:600;
+  border-radius:2px; color:var(--muted); }
+.chip.hot { background:var(--hot-bg); color:var(--hot); }
+.chip.cold { background:var(--cold-bg); color:var(--cold); }
+
+.lower { display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:16px; }
+.panel { background:var(--surface); border:1px solid var(--line); break-inside:avoid; }
+.panel h2 { margin:0; padding:9px 12px; font-size:12px; letter-spacing:.12em;
+  text-transform:uppercase; border-bottom:1px solid var(--line); background:var(--soft); }
+.panel .body { padding:4px 0 8px; }
+.plan td { border-bottom:1px solid var(--soft); font-size:12px; }
+.plan .rd { color:var(--muted); }
+.plan .dim { color:var(--muted); font-size:11px; }
+.scroll { overflow-x:auto; }
+
+.rules { list-style:none; margin:0; padding:6px 12px 10px; }
+.rules li { padding:7px 0; border-bottom:1px solid var(--soft); }
+.rules li:last-child { border-bottom:none; }
+.rules b { display:block; }
+.rules span { color:var(--muted); font-size:11.5px; }
+
+footer { color:var(--muted); font-size:11.5px; border-top:1px solid var(--line);
+  padding-top:12px; display:flex; flex-wrap:wrap; gap:6px 18px; }
+footer code { color:var(--ink); background:var(--soft); padding:1px 5px; }
+
+@media print {
+  @page { margin:12mm; }
+  body { background:#fff; padding:0; font-size:10.5px; }
+  .pos, .panel, .rule { border-color:#bbb; }
+  tbody tr:hover { background:none; }
+}
+@media (max-width:520px) {
+  body { padding:18px 12px 40px; }
+  h1 { font-size:21px; }
+  .meta { margin-left:0; text-align:left; }
+}
+</style>
+
+<div class="sheet">
+<header>
+  <h1>Draft Day &mdash; <em>pick 6 of 8</em></h1>
+  <div class="meta">0.5 PPR &middot; snake &middot; 14 rounds<br>consensus 2026-08-14 &middot; sheet 2026-08-15</div>
+</header>
+
+<div class="rule">
+  <b>Take the highest wait cost, not the best player available.</b>
+  <span>Value now minus what you'd still expect at that position at your next pick.
+  In the terminal that is <code>go</code>.</span>
+</div>
+
+<div class="picks">
+  <h3>Your picks</h3>
+  <ul><li class="keeper">6</li><li class="">11</li><li class="">22</li><li class="">27</li><li class="">38</li><li class="">43</li><li class="">54</li><li class="">59</li><li class="">70</li><li class="">75</li><li class="">86</li><li class="">91</li><li class="">102</li><li class="">107</li></ul>
+</div>
+
+<div class="grid"><section class="pos"><h2>RB</h2><table><thead><tr><th class="rk">#</th><th class="nm">Player</th><th class="num">ECR</th><th class="po-cell">Wk15-17</th><th class="ly">LY</th></tr></thead><tbody><tr class="tier-head"><th colspan="5">Tier 1</th></tr><tr class=""><td class="rk">RB1</td><td class="nm">Jahmyr Gibbs</td><td class="num">3</td><td class="po-cell"><span class="po ">+0.5</span></td><td class="ly"><span class="chip hot">+3.6</span></td></tr><tr class=""><td class="rk">RB2</td><td class="nm">Bijan Robinson</td><td class="num">4</td><td class="po-cell"><span class="po ">+1.0</span></td><td class="ly"><span class="chip hot">+2.8</span></td></tr><tr class="gone"><td class="rk">RB3</td><td class="nm">C. McCaffrey<span class="kept" title="likely kept">K</span></td><td class="num">9</td><td class="po-cell"><span class="po hard">-1.6</span></td><td class="ly"><span class="chip ">-1.3</span></td></tr><tr class="gone"><td class="rk">RB4</td><td class="nm">Jonathan Taylor<span class="kept" title="likely kept">K</span></td><td class="num">12</td><td class="po-cell"><span class="po easy">+2.0</span></td><td class="ly"><span class="chip hot">+3.4</span></td></tr><tr class="gone"><td class="rk">RB5</td><td class="nm">Ashton Jeanty<span class="kept" title="likely kept">K</span></td><td class="num">17</td><td class="po-cell"><span class="po ">+0.0</span></td><td class="ly"><span class="chip ">-0.0</span></td></tr><tr class="gone"><td class="rk">RB6</td><td class="nm">Chase Brown<span class="kept" title="likely kept">K</span></td><td class="num">18</td><td class="po-cell"><span class="po ">+0.3</span></td><td class="ly"><span class="chip ">+0.2</span></td></tr><tr class="gone"><td class="rk">RB7</td><td class="nm">James Cook III<span class="kept" title="likely kept">K</span></td><td class="num">18</td><td class="po-cell"><span class="po ">-0.8</span></td><td class="ly"><span class="chip hot">+3.4</span></td></tr><tr class="tier-head"><th colspan="5">Tier 2</th></tr><tr class=""><td class="rk">RB8</td><td class="nm">De&#x27;Von Achane</td><td class="num">21</td><td class="po-cell"><span class="po ">-0.6</span></td><td class="ly"><span class="chip hot">+3.5</span></td></tr><tr class="gone"><td class="rk">RB9</td><td class="nm">Omarion Hampton<span class="kept" title="likely kept">K</span></td><td class="num">26</td><td class="po-cell"><span class="po ">+0.2</span></td><td class="ly"><span class="chip ">+0.0</span></td></tr><tr class=""><td class="rk">RB10</td><td class="nm">Saquon Barkley</td><td class="num">26</td><td class="po-cell"><span class="po hard">-1.8</span></td><td class="ly"><span class="chip ">-1.1</span></td></tr><tr class=""><td class="rk">RB11</td><td class="nm">K. Walker III</td><td class="num">29</td><td class="po-cell"><span class="po hard">-1.9</span></td><td class="ly"><span class="chip ">-0.1</span></td></tr><tr class=""><td class="rk">RB12</td><td class="nm">Derrick Henry</td><td class="num">38</td><td class="po-cell"><span class="po ">+1.1</span></td><td class="ly"><span class="chip hot">+2.0</span></td></tr><tr class=""><td class="rk">RB13</td><td class="nm">Jeremiyah Love</td><td class="num">38</td><td class="po-cell"><span class="po easy">+2.0</span></td><td class="ly"><span class="chip new">new</span></td></tr><tr class=""><td class="rk">RB14</td><td class="nm">Breece Hall</td><td class="num">41</td><td class="po-cell"><span class="po ">-0.2</span></td><td class="ly"><span class="chip ">+1.0</span></td></tr><tr class=""><td class="rk">RB15</td><td class="nm">Kyren Williams</td><td class="num">42</td><td class="po-cell"><span class="po ">-0.4</span></td><td class="ly"><span class="chip ">+1.2</span></td></tr><tr class=""><td class="rk">RB16</td><td class="nm">Josh Jacobs</td><td class="num">44</td><td class="po-cell"><span class="po ">-0.1</span></td><td class="ly"><span class="chip ">+0.9</span></td></tr></tbody></table></section><section class="pos"><h2>WR</h2><table><thead><tr><th class="rk">#</th><th class="nm">Player</th><th class="num">ECR</th><th class="po-cell">Wk15-17</th><th class="ly">LY</th></tr></thead><tbody><tr class="tier-head"><th colspan="5">Tier 1</th></tr><tr class=""><td class="rk">WR1</td><td class="nm">Ja&#x27;Marr Chase</td><td class="num">2</td><td class="po-cell"><span class="po easy">+1.8</span></td><td class="ly"><span class="chip ">+0.5</span></td></tr><tr class=""><td class="rk">WR2</td><td class="nm">Puka Nacua</td><td class="num">3</td><td class="po-cell"><span class="po ">+1.4</span></td><td class="ly"><span class="chip hot">+4.0</span></td></tr><tr class=""><td class="rk">WR3</td><td class="nm">J. Smith-Njigba</td><td class="num">5</td><td class="po-cell"><span class="po hard">-2.1</span></td><td class="ly"><span class="chip hot">+3.3</span></td></tr><tr class=""><td class="rk">WR4</td><td class="nm">A. St. Brown</td><td class="num">6</td><td class="po-cell"><span class="po ">+0.3</span></td><td class="ly"><span class="chip ">-0.2</span></td></tr><tr class="tier-head"><th colspan="5">Tier 2</th></tr><tr class=""><td class="rk">WR5</td><td class="nm">CeeDee Lamb</td><td class="num">9</td><td class="po-cell"><span class="po ">+1.0</span></td><td class="ly"><span class="chip cold">-1.7</span></td></tr><tr class=""><td class="rk">WR6</td><td class="nm">J. Jefferson</td><td class="num">10</td><td class="po-cell"><span class="po easy">+3.0</span></td><td class="ly"><span class="chip cold">-2.6</span></td></tr><tr class=""><td class="rk">WR7</td><td class="nm">Drake London</td><td class="num">12</td><td class="po-cell"><span class="po ">+0.7</span></td><td class="ly"><span class="chip ">+0.2</span></td></tr><tr class=""><td class="rk">WR8</td><td class="nm">A.J. Brown</td><td class="num">15</td><td class="po-cell"><span class="po hard">-2.4</span></td><td class="ly"><span class="chip ">+0.8</span></td></tr><tr class=""><td class="rk">WR9</td><td class="nm">Nico Collins</td><td class="num">16</td><td class="po-cell"><span class="po ">-1.1</span></td><td class="ly"><span class="chip ">+0.3</span></td></tr><tr class=""><td class="rk">WR10</td><td class="nm">George Pickens</td><td class="num">20</td><td class="po-cell"><span class="po ">+1.0</span></td><td class="ly"><span class="chip ">+1.5</span></td></tr><tr class=""><td class="rk">WR11</td><td class="nm">Chris Olave</td><td class="num">21</td><td class="po-cell"><span class="po ">+0.8</span></td><td class="ly"><span class="chip ">+0.6</span></td></tr><tr class=""><td class="rk">WR12</td><td class="nm">Rashee Rice</td><td class="num">22</td><td class="po-cell"><span class="po ">-1.2</span></td><td class="ly"><span class="chip ">+0.7</span></td></tr><tr class=""><td class="rk">WR13</td><td class="nm">DeVonta Smith</td><td class="num">24</td><td class="po-cell"><span class="po hard">-2.5</span></td><td class="ly"><span class="chip ">+0.4</span></td></tr><tr class=""><td class="rk">WR14</td><td class="nm">Malik Nabers</td><td class="num">29</td><td class="po-cell"><span class="po easy">+3.2</span></td><td class="ly"><span class="chip ">-1.4</span></td></tr><tr class=""><td class="rk">WR15</td><td class="nm">Zay Flowers</td><td class="num">29</td><td class="po-cell"><span class="po ">-1.2</span></td><td class="ly"><span class="chip hot">+2.4</span></td></tr><tr class=""><td class="rk">WR16</td><td class="nm">Garrett Wilson</td><td class="num">30</td><td class="po-cell"><span class="po hard">-2.4</span></td><td class="ly"><span class="chip hot">+1.6</span></td></tr></tbody></table></section><div class="stack"><section class="pos"><h2>TE</h2><table><thead><tr><th class="rk">#</th><th class="nm">Player</th><th class="num">ECR</th><th class="po-cell">Wk15-17</th><th class="ly">LY</th></tr></thead><tbody><tr class="tier-head"><th colspan="5">Tier 1</th></tr><tr class=""><td class="rk">TE1</td><td class="nm">Trey McBride</td><td class="num">20</td><td class="po-cell"><span class="po ">-0.5</span></td><td class="ly"><span class="chip ">+0.6</span></td></tr><tr class=""><td class="rk">TE2</td><td class="nm">Brock Bowers</td><td class="num">20</td><td class="po-cell"><span class="po ">+1.4</span></td><td class="ly"><span class="chip hot">+1.8</span></td></tr><tr class=""><td class="rk">TE3</td><td class="nm">C. Loveland</td><td class="num">38</td><td class="po-cell"><span class="po hard">-1.7</span></td><td class="ly"><span class="chip ">+0.7</span></td></tr><tr class=""><td class="rk">TE4</td><td class="nm">Tyler Warren</td><td class="num">54</td><td class="po-cell"><span class="po easy">+2.2</span></td><td class="ly"><span class="chip ">-1.2</span></td></tr><tr class=""><td class="rk">TE5</td><td class="nm">Tucker Kraft</td><td class="num">73</td><td class="po-cell"><span class="po ">+0.4</span></td><td class="ly"><span class="chip hot">+5.7</span></td></tr><tr class=""><td class="rk">TE6</td><td class="nm">H. Fannin Jr.</td><td class="num">77</td><td class="po-cell"><span class="po ">-0.8</span></td><td class="ly"><span class="chip hot">+1.9</span></td></tr><tr class="tier-head"><th colspan="5">Tier 2</th></tr><tr class=""><td class="rk">TE7</td><td class="nm">Sam LaPorta</td><td class="num">82</td><td class="po-cell"><span class="po ">-1.4</span></td><td class="ly"><span class="chip hot">+2.7</span></td></tr><tr class=""><td class="rk">TE8</td><td class="nm">Kyle Pitts Sr.</td><td class="num">83</td><td class="po-cell"><span class="po ">+1.3</span></td><td class="ly"><span class="chip ">+1.0</span></td></tr><tr class=""><td class="rk">TE9</td><td class="nm">Travis Kelce</td><td class="num">99</td><td class="po-cell"><span class="po ">+0.1</span></td><td class="ly"><span class="chip ">+0.8</span></td></tr></tbody></table></section><section class="pos"><h2>QB</h2><table><thead><tr><th class="rk">#</th><th class="nm">Player</th><th class="num">ECR</th><th class="po-cell">Wk15-17</th><th class="ly">LY</th></tr></thead><tbody><tr class="tier-head"><th colspan="5">Tier 1</th></tr><tr class=""><td class="rk">QB1</td><td class="nm">Josh Allen</td><td class="num">26</td><td class="po-cell"><span class="po ">+0.8</span></td><td class="ly"><span class="chip hot">+3.1</span></td></tr><tr class=""><td class="rk">QB2</td><td class="nm">Lamar Jackson</td><td class="num">32</td><td class="po-cell"><span class="po ">+0.5</span></td><td class="ly"><span class="chip ">+0.9</span></td></tr><tr class="gone"><td class="rk">QB3</td><td class="nm">Drake Maye<span class="kept" title="likely kept">K</span></td><td class="num">39</td><td class="po-cell"><span class="po ">-0.3</span></td><td class="ly"><span class="chip ">+1.3</span></td></tr><tr class=""><td class="rk">QB4</td><td class="nm">Joe Burrow</td><td class="num">46</td><td class="po-cell"><span class="po ">-0.1</span></td><td class="ly"><span class="chip ">-0.6</span></td></tr><tr class=""><td class="rk">QB5</td><td class="nm">Jayden Daniels</td><td class="num">50</td><td class="po-cell"><span class="po hard">-1.6</span></td><td class="ly"><span class="chip cold">-1.6</span></td></tr><tr class=""><td class="rk">QB6</td><td class="nm">Jalen Hurts</td><td class="num">57</td><td class="po-cell"><span class="po hard">-1.6</span></td><td class="ly"><span class="chip ">+0.6</span></td></tr><tr class="tier-head"><th colspan="5">Tier 2</th></tr><tr class=""><td class="rk">QB7</td><td class="nm">Caleb Williams</td><td class="num">68</td><td class="po-cell"><span class="po ">-1.0</span></td><td class="ly"><span class="chip ">-0.8</span></td></tr><tr class=""><td class="rk">QB8</td><td class="nm">Justin Herbert</td><td class="num">70</td><td class="po-cell"><span class="po ">+0.4</span></td><td class="ly"><span class="chip ">-0.6</span></td></tr><tr class=""><td class="rk">QB9</td><td class="nm">Trevor Lawrence</td><td class="num">80</td><td class="po-cell"><span class="po easy">+2.0</span></td><td class="ly"><span class="chip ">-1.0</span></td></tr></tbody></table></section></div></div>
+
+<div class="lower">
+  <section class="panel">
+    <h2>Round plan</h2>
+    <div class="body scroll">
+      <table class="plan">
+        <thead><tr><th class="num">Pick</th><th class="num rd">Rd</th>
+        <th>What the rule takes</th><th>Likeliest</th></tr></thead>
+        <tbody><tr><td class='num'>6</td><td class='num rd'>1</td><td>Bijan Robinson</td><td class='dim'>keeper, costs your R1</td></tr><tr><td class='num'>11</td><td class='num rd'>2</td><td>RB 80% · WR 19%</td><td class='dim'>Jeanty, Taylor, McCaffrey</td></tr><tr><td class='num'>22</td><td class='num rd'>3</td><td>RB 37% · QB 25% · WR 20% · TE 18%</td><td class='dim'>Allen, Achane, McBride</td></tr><tr><td class='num'>27</td><td class='num rd'>4</td><td>QB 51% · WR 42%</td><td class='dim'>Jackson, Maye, Flowers</td></tr><tr><td class='num'>38</td><td class='num rd'>5</td><td>WR 57% · RB 26% · QB 12%</td><td class='dim'>McMillan, Higgins, Wilson</td></tr><tr><td class='num'>43</td><td class='num rd'>6</td><td>WR 52% · RB 27% · QB 19%</td><td class='dim'>Daniels, Nabers, McConkey</td></tr><tr><td class='num'>54</td><td class='num rd'>7</td><td>WR 60% · RB 23% · QB 14%</td><td class='dim'>Adams, Burden, Skattebo</td></tr><tr><td class='num'>59</td><td class='num rd'>8</td><td>RB 86%</td><td class='dim'>Irving, Judkins, Skattebo</td></tr><tr><td class='num'>70</td><td class='num rd'>9</td><td>RB 42% · TE 29% · QB 28%</td><td class='dim'>Tuten, Fannin, Kraft</td></tr><tr><td class='num'>75</td><td class='num rd'>10</td><td>WR 47% · RB 26% · TE 17%</td><td class='dim'>Pierce, Pitts, Tuten</td></tr><tr><td class='num'>86</td><td class='num rd'>11</td><td>RB 47% · WR 34%</td><td class='dim'>Pollard, Stevenson, Hubbard</td></tr><tr><td class='num'>91</td><td class='num rd'>12</td><td>RB 41% · QB 21% · TE 19%</td><td class='dim'>Harvey, Dart — or an IR stash</td></tr><tr><td class='num'>102</td><td class='num rd'>13</td><td>KICKER</td><td class='dim'>last two picks, never earlier</td></tr><tr><td class='num'>107</td><td class='num rd'>14</td><td>DEFENSE</td><td class='dim'>stream both all season</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Hold these in your head</h2>
+    <ul class="rules"><li><b>Take the highest wait cost</b><span>Not best available. Value now minus what you&#x27;d still get at that position at your next pick. Backtested over 20,000 drafts across five real seasons: +30 points a season over drafting straight off the list, and the only strategy that won all five.</span></li><li><b>Don&#x27;t run a script</b><span>RB-heavy was the best plan of 2021 and the worst of 2024. Averaged over five seasons it is 21 points WORSE than drafting off the list. No fixed plan survives; the rule wins by reacting. React.</span></li><li><b>Assume the K players are gone</b><span>Seven teams keep one each, and a keeper costs the round he went last year — so last season&#x27;s late breakouts vanish, not this season&#x27;s best players.</span></li><li><b>All four elite WRs go by consensus #6</b><span>They will not reach pick 11. Take one if he slides, but don&#x27;t plan on it.</span></li><li><b>Tier-1 QB runs to #69, tier-1 TE to #54</b><span>Both wait rounds, not picks. Forcing either at pick 11 is the worst move on the board.</span></li><li><b>Fade the hot, only half-trust the cold</b><span>Hot players gave back 91% of the gap between what they scored and what their usage earned. Cold ones recovered just 31%.</span></li><li><b>Kicker and defense are picks 102 and 107</b><span>Every round spent earlier is pure loss. One late pick is better spent on a player who opens on IR — that stash costs you no bench spot.</span></li></ul>
+  </section>
+</div>
+
+<footer>
+  <span><span class="kept">K</span> likely kept by another team &mdash; assume gone.</span>
+  <span><b>Wk15-17</b> = playoff schedule, points vs average. Tiebreaker only.</span>
+  <span><b>LY</b> = 2025 points over expected/game.
+  <span class="chip hot">+3.4</span> fade &middot;
+  <span class="chip cold">-2.6</span> partial bounce.</span>
+  <span><code>go</code> recommend &middot; <code>me &lt;name&gt;</code> your pick &middot;
+  <code>why &lt;name&gt;</code> 2025 card &middot; <code>undo</code></span>
+</footer>
+</div>

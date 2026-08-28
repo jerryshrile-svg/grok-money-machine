@@ -1,0 +1,5 @@
+*.pyc
+.test_state.json
+__pycache__/
+draft_state.json
+fantasy/data/raw/

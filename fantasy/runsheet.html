@@ -1,0 +1,665 @@
+<title>Draft Day Run Sheet — 15 August 2026</title>
+<style>
+  :root {
+    --paper:      #F2F1ED;
+    --paper-2:    #E9E8E2;
+    --card:       #FBFAF7;
+    --ink:        #16191C;
+    --ink-2:      #4A5150;
+    --ink-3:      #767C79;
+    --rule:       #D2D5CE;
+    --rule-hard:  #B4B9B0;
+    --turf:       #1F5C3A;
+    --turf-soft:  #E3EBE4;
+    --now:        #B03A2E;
+    --now-soft:   #F6E4E1;
+    --hold:       #2E7D4F;
+    --hold-soft:  #E2EFE7;
+    --warn:       #8A5E0F;
+    --warn-soft:  #F5EBD8;
+
+    --serif: "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --gap: clamp(1.6rem, 3vw, 2.6rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #0F1214;
+      --paper-2:   #171B1D;
+      --card:      #171B1D;
+      --ink:       #E8EAE6;
+      --ink-2:     #A7AFAB;
+      --ink-3:     #7C8480;
+      --rule:      #2A2F31;
+      --rule-hard: #3C4245;
+      --turf:      #62B287;
+      --turf-soft: #16281F;
+      --now:       #E4796A;
+      --now-soft:  #2B1A18;
+      --hold:      #5FB585;
+      --hold-soft: #14251C;
+      --warn:      #D3A44F;
+      --warn-soft: #262017;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:     #0F1214;
+    --paper-2:   #171B1D;
+    --card:      #171B1D;
+    --ink:       #E8EAE6;
+    --ink-2:     #A7AFAB;
+    --ink-3:     #7C8480;
+    --rule:      #2A2F31;
+    --rule-hard: #3C4245;
+    --turf:      #62B287;
+    --turf-soft: #16281F;
+    --now:       #E4796A;
+    --now-soft:  #2B1A18;
+    --hold:      #5FB585;
+    --hold-soft: #14251C;
+    --warn:      #D3A44F;
+    --warn-soft: #262017;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    padding: clamp(1.2rem, 4vw, 3.5rem) clamp(1rem, 4vw, 2rem) 5rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 62rem; margin: 0 auto; display: flex; flex-direction: column; gap: var(--gap); }
+
+  /* ---------- masthead ---------- */
+  .mast { border-bottom: 2px solid var(--ink); padding-bottom: 1.2rem;
+          display: flex; flex-direction: column; gap: .7rem; }
+  .kicker { font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+            color: var(--turf); font-weight: 650; }
+  .mast h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(2.1rem, 6vw, 3.4rem);
+             line-height: 1.02; margin: 0; text-wrap: balance; letter-spacing: -.015em; }
+  .mast p { margin: 0; max-width: var(--measure); color: var(--ink-2); }
+  .facts { display: flex; flex-wrap: wrap; gap: .4rem .5rem; margin-top: .3rem; }
+  .fact { font-family: var(--mono); font-size: .74rem; padding: .22rem .55rem;
+          border: 1px solid var(--rule-hard); border-radius: 2px; color: var(--ink-2);
+          white-space: nowrap; }
+  .fact strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+  section { display: flex; flex-direction: column; gap: 1rem; }
+  h2 { font-family: var(--serif); font-size: clamp(1.35rem, 3vw, 1.75rem); font-weight: 600;
+       margin: 0; letter-spacing: -.01em; text-wrap: balance;
+       display: flex; align-items: baseline; gap: .6rem; }
+  h2 .num { font-family: var(--mono); font-size: .72rem; color: var(--turf);
+            letter-spacing: .1em; font-weight: 600; }
+  h3 { font-family: var(--sans); font-size: .8rem; letter-spacing: .12em; text-transform: uppercase;
+       color: var(--ink-3); font-weight: 650; margin: 0; }
+  p { margin: 0; max-width: var(--measure); }
+  a { color: var(--turf); }
+
+  .lede { font-family: var(--serif); font-size: 1.12rem; color: var(--ink-2); }
+
+  /* ---------- the rule ---------- */
+  .rule-box { background: var(--turf-soft); border-left: 3px solid var(--turf);
+              padding: 1.1rem 1.3rem; display: flex; flex-direction: column; gap: .5rem; }
+  .rule-box .big { font-family: var(--serif); font-size: clamp(1.15rem, 2.6vw, 1.5rem);
+                   line-height: 1.35; margin: 0; max-width: 46ch; }
+
+  /* ---------- timeline ---------- */
+  .tl { display: flex; flex-direction: column; gap: 0; }
+  .step { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0 1.1rem;
+          border-top: 1px solid var(--rule); padding: 1.1rem 0; }
+  .step:last-child { border-bottom: 1px solid var(--rule); }
+  .when { font-family: var(--mono); font-size: .78rem; font-weight: 600; color: var(--turf);
+          letter-spacing: .04em; padding-top: .15rem; }
+  .step.live .when { color: var(--now); }
+  .step-body { display: flex; flex-direction: column; gap: .55rem; min-width: 0; }
+  .step-body h4 { margin: 0; font-size: 1.02rem; font-weight: 650; letter-spacing: -.005em; }
+  .step-body p { font-size: .94rem; color: var(--ink-2); }
+
+  pre { font-family: var(--mono); font-size: .8rem; line-height: 1.65; margin: 0;
+        background: var(--paper-2); border: 1px solid var(--rule); border-radius: 3px;
+        padding: .75rem .9rem; overflow-x: auto; color: var(--ink); }
+  pre .c { color: var(--ink-3); }
+  code { font-family: var(--mono); font-size: .86em; background: var(--paper-2);
+         border: 1px solid var(--rule); border-radius: 2px; padding: .07em .34em; }
+
+  ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .4rem;
+       max-width: var(--measure); }
+  li { font-size: .94rem; color: var(--ink-2); }
+  li strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- snake ---------- */
+  .snake-scroll { overflow-x: auto; padding-bottom: .4rem; }
+  .snake { display: grid; grid-template-columns: repeat(14, minmax(4.6rem, 1fr));
+           gap: .3rem; min-width: 46rem; }
+  .pk { border: 1px solid var(--rule-hard); border-radius: 2px; background: var(--card);
+        padding: .5rem .35rem .55rem; display: flex; flex-direction: column; gap: .18rem;
+        text-align: center; }
+  .pk .rd { font-family: var(--mono); font-size: .62rem; letter-spacing: .08em;
+            color: var(--ink-3); text-transform: uppercase; }
+  .pk .no { font-family: var(--mono); font-size: 1.15rem; font-weight: 650;
+            font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .pk .plan { font-size: .68rem; color: var(--ink-2); line-height: 1.25; }
+  .pk.keeper { background: var(--turf-soft); border-color: var(--turf); }
+  .pk.keeper .no { color: var(--turf); }
+  .pk.tight { border-color: var(--now); }
+  .pk.tight .gap { color: var(--now); }
+  .gap { font-family: var(--mono); font-size: .6rem; color: var(--ink-3);
+         letter-spacing: .04em; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; font-size: .78rem;
+            color: var(--ink-3); }
+  .legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .sw { width: .8rem; height: .8rem; border: 1px solid var(--rule-hard); border-radius: 2px;
+        display: inline-block; }
+  .sw.k { background: var(--turf-soft); border-color: var(--turf); }
+  .sw.t { border-color: var(--now); }
+
+  /* ---------- tool cards ---------- */
+  .cards { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+  .card { border: 1px solid var(--rule); border-radius: 3px; background: var(--card);
+          padding: .9rem 1rem; display: flex; flex-direction: column; gap: .4rem; }
+  .card .cmd { font-family: var(--mono); font-size: .82rem; font-weight: 600; color: var(--ink);
+               word-break: break-word; }
+  .card .ans { font-size: .88rem; color: var(--ink-2); }
+  .card .use { font-size: .76rem; color: var(--ink-3); border-top: 1px solid var(--rule);
+               padding-top: .4rem; }
+
+  /* ---------- tables ---------- */
+  .tbl-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 30rem; font-size: .88rem; }
+  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--rule);
+           vertical-align: top; }
+  th { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+       font-weight: 650; border-bottom: 1px solid var(--rule-hard); white-space: nowrap; }
+  td.k { font-family: var(--mono); white-space: nowrap; color: var(--ink); font-size: .82rem; }
+  td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .tag { font-family: var(--mono); font-size: .7rem; padding: .1rem .4rem; border-radius: 2px;
+         white-space: nowrap; }
+  .tag.now  { background: var(--now-soft);  color: var(--now); }
+  .tag.hold { background: var(--hold-soft); color: var(--hold); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+
+  /* ---------- callouts ---------- */
+  .note { border-left: 3px solid var(--rule-hard); padding: .1rem 0 .1rem 1rem;
+          display: flex; flex-direction: column; gap: .4rem; }
+  .note.alarm { border-left-color: var(--now); }
+  .note.alarm h3 { color: var(--now); }
+  .note p, .note li { font-size: .92rem; }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 1rem; font-size: .8rem;
+           color: var(--ink-3); display: flex; flex-direction: column; gap: .3rem; }
+
+  @media (max-width: 34rem) {
+    .step { grid-template-columns: 1fr; gap: .45rem; }
+    .when { padding-top: 0; }
+  }
+
+  @media print {
+    body { background: #fff; color: #000; padding: 0; font-size: 11px; }
+    .card, pre, .rule-box { break-inside: avoid; }
+    section { break-inside: avoid-page; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="kicker">Run sheet · prepared 10 August</div>
+    <h1>Draft Day</h1>
+    <p class="lede">Saturday 15 August. Everything below is either a thing to type or a
+      decision already measured, so that nothing has to be worked out under a 90-second clock.</p>
+    <div class="facts">
+      <span class="fact"><strong>8</strong> teams</span>
+      <span class="fact"><strong>0.5</strong> PPR</span>
+      <span class="fact">pick <strong>6</strong> of 8</span>
+      <span class="fact"><strong>14</strong> rounds</span>
+      <span class="fact">snake</span>
+      <span class="fact">keeper <strong>Bijan Robinson</strong> · burns pick 6</span>
+      <span class="fact"><strong>6</strong> of 8 make playoffs</span>
+      <span class="fact">rolling waivers</span>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="num">01</span> The one rule</h2>
+    <div class="rule-box">
+      <p class="big">Take the player with the highest <strong>wait cost</strong> — not the
+        highest value, not the biggest name.</p>
+      <p>Wait cost is a player's value minus what you'd expect to still get at that position
+        at your <em>next</em> pick. A player nobody else wants for ten picks is free; you can
+        have him later. The tool computes it live from a simulation of the picks in between,
+        and it is the only number on the table you have to read.</p>
+    </div>
+    <p>This was measured, not assumed: <strong>+30 ± 2 points a season</strong> over drafting
+      straight down the consensus list, across five replayed seasons, winning in all five. It
+      is the single largest edge in the toolkit.</p>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span> Before the draft</h2>
+    <div class="tl">
+
+      <div class="step">
+        <div class="when">T−3h</div>
+        <div class="step-body">
+          <h4>Pull fresh rankings and check the machine</h4>
+          <p>The consensus updates weekly. A fresh pull costs five seconds and catches every
+            camp injury and depth-chart move the market has already priced in.</p>
+          <pre><span class="c"># from inside the fantasy/ folder</span>
+python3 fetch_data.py rankings
+python3 build_projections.py
+python3 verify.py</pre>
+          <p><code>verify.py</code> re-measures every claim this sheet makes. Two lines will
+            read <span class="tag warn">skip</span> — those need back seasons you don't need on
+            draft day. Anything reading <span class="tag now">FAIL</span> names its own fix.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="when">T−2h50</div>
+        <div class="step-body">
+          <h4>See what moved while everyone else wasn't looking</h4>
+          <pre>python3 movers.py</pre>
+          <p>Your leaguemates are drafting off something printed — a magazine from July,
+            an export from last weekend. You re-pulled ten minutes ago. Every player who moved
+            in between is a spot where the room is priced wrong and you aren't.</p>
+          <p>It is not a small list. Over the same window last year, <strong>28 draftable
+            players moved six places or more</strong> — Quinshon Judkins fell 55, Rashee Rice
+            fell 24, Dylan Sampson rose 43. <strong>Reach for the risers; the fallers are the
+            traps.</strong> Falls are usually bigger and better-founded than rises, because an
+            injury moves a ranking further than optimism does.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="when">T−2h</div>
+        <div class="step-body">
+          <h4>Print the board</h4>
+          <pre>python3 cheatsheet.py    <span class="c"># writes cheatsheet.html — open it, print it</span></pre>
+          <p>Generated from the same board the assistant uses, so the paper can never disagree
+            with the screen. This is your fallback if the laptop dies.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="when">T−45m</div>
+        <div class="step-body">
+          <h4>The moment keepers are announced, write them down</h4>
+          <p>This is the biggest single gap in the whole setup — the other seven keepers are
+            worth about <strong>−45 lineup points</strong> of board error while unknown, more
+            than any strategy lever gains. Put the names into <code>league.json</code>:</p>
+          <pre>"opponent_keepers": { "known": ["Jonathan Taylor", "…"], "unknown_count": 0 }</pre>
+          <p>Then re-run <code>python3 cheatsheet.py</code>. No rebuild needed — the file is
+            read live. Every survival number sharpens immediately.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="when">T−20m</div>
+        <div class="step-body">
+          <h4>Practice run — two minutes, do not skip</h4>
+          <p>Start the assistant, type ten player names, hit <code>go</code>, look at the
+            table, then wipe it. The point is that the commands stop being something you think
+            about while the clock runs.</p>
+          <pre>python3 draft_day.py
+<span class="c"># type ten names, then 'go', then 'quit'</span>
+rm draft_state.json          <span class="c"># Windows: del draft_state.json</span>
+python3 audit.py             <span class="c"># confirms no practice draft left behind</span></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="when">T−5m</div>
+        <div class="step-body">
+          <h4>Open it for real</h4>
+          <pre>python3 draft_day.py</pre>
+          <p>Terminal on one side, Yahoo draft window on the other. Paper cheat sheet next to
+            the keyboard.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span> During the draft — the loop</h2>
+    <p>There are only two things you ever do, and one of them is automatic.</p>
+
+    <div class="tl">
+      <div class="step live">
+        <div class="when">EVERY&nbsp;PICK</div>
+        <div class="step-body">
+          <h4>Type the name of whoever just went</h4>
+          <pre>jeanty                <span class="c"># someone else took him</span>
+me nacua              <span class="c"># you took him ("+nacua" also works)</span></pre>
+          <p>Fuzzy matching, so <code>ja'marr</code> and <code>bijan</code> both land. Your
+            keeper fills its own slot at pick 6 — don't type it. If a pick is yours and you
+            forget <code>me</code>, it records it as yours anyway and says so.</p>
+        </div>
+      </div>
+
+      <div class="step live">
+        <div class="when">YOUR&nbsp;TURN</div>
+        <div class="step-body">
+          <h4>The table appears on its own</h4>
+          <p>You don't need to type anything — when the pick before yours is entered, the
+            recommendation prints automatically. <code>go</code> reprints it any time.</p>
+          <pre>Pick 11 (round 2) — next pick 22, 10 picks away
+
+PLAYER                  POS  TIER   VORP  SURVIVE  WAIT COST    LY
+Puka Nacua              WR2     1  106.1      0%      +73.7  +4.0  <span class="c">&lt;- gone if you wait</span>
+Jaxon Smith-Njigba      WR3     1   97.4      0%      +65.0  +3.3  <span class="c">&lt;- gone if you wait</span>
+Christian McCaffrey     RB3     1  128.2      3%      +51.8  -1.3  <span class="c">&lt;- gone if you wait</span>
+Chase Brown             RB6     2   86.6     41%      +10.2  +0.2
+Josh Allen              QB1     1   78.3     93%       +0.5  +3.1  <span class="c">&lt;- safe to wait</span></pre>
+          <p><strong>Take the top row.</strong> Josh Allen has the second-highest raw value on
+            that board and is still the wrong pick — an 8-team league won't take a quarterback
+            in the next ten selections, so he keeps.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>Reading the columns</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Column</th><th>What it is</th><th>How to use it</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="k">WAIT COST</td>
+            <td>Value now minus expected best available at that position at your next pick.</td>
+            <td><strong>This is the pick.</strong> Highest number wins.</td>
+          </tr>
+          <tr>
+            <td class="k">SURVIVE</td>
+            <td>Chance he's still there at your next pick, from a live simulation of the
+              picks in between.</td>
+            <td>Context for the number above. Under ~20% means now or never.</td>
+          </tr>
+          <tr>
+            <td class="k">TIER</td>
+            <td>Set by how much the experts disagree — while rank ranges overlap, the panel
+              can't separate them and neither should you.</td>
+            <td>Inside a tier, take the scarcer position or the better playoff schedule.</td>
+          </tr>
+          <tr>
+            <td class="k">VORP</td>
+            <td>Points above the last startable player at that position, flex-aware.</td>
+            <td>Background only. Don't draft off it.</td>
+          </tr>
+          <tr>
+            <td class="k">LY</td>
+            <td>2025 points over expected per game.
+              <span class="tag warn">yellow</span> outran his usage,
+              <span class="tag hold">green</span> underran it.</td>
+            <td>Tiebreaker between close players. Fade yellow harder than you chase green —
+              see §06.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span> Your fourteen picks</h2>
+    <p>The gaps alternate <strong>4 picks</strong> and <strong>10 picks</strong>. That
+      alternation is the entire reason wait cost matters: at the turn you can afford to wait,
+      and before the long gap you cannot. Positions shown are what 400 simulated drafts most
+      often chose — a forecast, not a plan to follow.</p>
+
+    <div class="snake-scroll">
+      <div class="snake">
+        <div class="pk keeper"><span class="rd">R1</span><span class="no">6</span><span class="plan">Bijan · keeper</span><span class="gap">auto</span></div>
+        <div class="pk tight"><span class="rd">R2</span><span class="no">11</span><span class="plan">RB 72%</span><span class="gap">then 10</span></div>
+        <div class="pk"><span class="rd">R3</span><span class="no">22</span><span class="plan">RB/QB/TE</span><span class="gap">then 4</span></div>
+        <div class="pk tight"><span class="rd">R4</span><span class="no">27</span><span class="plan">WR 58%</span><span class="gap">then 10</span></div>
+        <div class="pk"><span class="rd">R5</span><span class="no">38</span><span class="plan">WR 62%</span><span class="gap">then 4</span></div>
+        <div class="pk tight"><span class="rd">R6</span><span class="no">43</span><span class="plan">WR 46%</span><span class="gap">then 10</span></div>
+        <div class="pk"><span class="rd">R7</span><span class="no">54</span><span class="plan">WR 60%</span><span class="gap">then 4</span></div>
+        <div class="pk tight"><span class="rd">R8</span><span class="no">59</span><span class="plan">RB 80%</span><span class="gap">then 10</span></div>
+        <div class="pk"><span class="rd">R9</span><span class="no">70</span><span class="plan">RB/TE/QB</span><span class="gap">then 4</span></div>
+        <div class="pk tight"><span class="rd">R10</span><span class="no">75</span><span class="plan">WR 45%</span><span class="gap">then 10</span></div>
+        <div class="pk"><span class="rd">R11</span><span class="no">86</span><span class="plan">RB/WR</span><span class="gap">then 4</span></div>
+        <div class="pk tight"><span class="rd">R12</span><span class="no">91</span><span class="plan">RB/QB</span><span class="gap">then 10</span></div>
+        <div class="pk"><span class="rd">R13</span><span class="no">102</span><span class="plan">Kicker</span><span class="gap">then 4</span></div>
+        <div class="pk"><span class="rd">R14</span><span class="no">107</span><span class="plan">Defense</span><span class="gap">last</span></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="sw k"></i> keeper, fills itself</span>
+      <span><i class="sw t"></i> long gap follows — wait cost is high here</span>
+      <span>K and DEF in the last two rounds, always</span>
+    </div>
+
+    <div class="note">
+      <h3>Round 13 or 14 — the free roster spot</h3>
+      <p>You have an <strong>IR slot</strong>, and in an eight-team league most managers
+        forget it exists. A player who starts the season on IR, PUP or NFI can be drafted
+        with your last bench pick and moved to IR before week 1 — which hands the bench spot
+        straight back. The pick costs you nothing but the marginal 14th-best bench body, who
+        you'd have dropped for a waiver add in week 2 anyway.</p>
+      <p>So late on: if Yahoo shows an injury tag on someone whose healthy ranking would be
+        sixty places higher, take him. <strong>The board can't flag these</strong> — the
+        consensus prices the injury into the rank and the free data carries no designation —
+        but Yahoo's own draft screen shows it, and that's enough.</p>
+    </div>
+
+    <h3>What survives to pick 11</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Player</th><th>Pos</th><th>Still there at 11</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Josh Allen</td><td class="k">QB</td><td class="n">55%</td><td><span class="tag hold">can wait</span></td></tr>
+          <tr><td>Chase Brown</td><td class="k">RB</td><td class="n">42%</td><td></td></tr>
+          <tr><td>Ashton Jeanty</td><td class="k">RB</td><td class="n">40%</td><td></td></tr>
+          <tr><td>Jonathan Taylor</td><td class="k">RB</td><td class="n">29%</td><td></td></tr>
+          <tr><td>Christian McCaffrey</td><td class="k">RB</td><td class="n">15%</td><td><span class="tag now">now or never</span></td></tr>
+          <tr><td>Jahmyr Gibbs</td><td class="k">RB</td><td class="n">4%</td><td><span class="tag now">now or never</span></td></tr>
+          <tr><td>Puka Nacua</td><td class="k">WR</td><td class="n">1%</td><td><span class="tag now">now or never</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Tier depth on today's board: <strong>WR tier 1 ends at consensus #5</strong>, RB at #16,
+      TE at #53, QB at #69. Elite receiver is the scarce thing; quarterback and tight end are
+      not, which is why the table keeps telling you to wait on them.</p>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span> Everything you can type</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="cmd">&lt;name&gt;</div>
+        <div class="ans">Someone else drafted this player.</div>
+        <div class="use">The command you'll use 100 times.</div>
+      </div>
+      <div class="card">
+        <div class="cmd">me &lt;name&gt;  ·  +&lt;name&gt;</div>
+        <div class="ans">You drafted this player.</div>
+        <div class="use">Auto-corrects if you forget it on your own pick.</div>
+      </div>
+      <div class="card">
+        <div class="cmd">go</div>
+        <div class="ans">Reprint the recommendation with survival odds and wait cost.</div>
+        <div class="use">Prints itself when your turn comes — this is for a second look.</div>
+      </div>
+      <div class="card">
+        <div class="cmd">why &lt;name&gt;</div>
+        <div class="ans">Last season's card: snaps, target share, touchdowns vs expected,
+          and a plain-English verdict.</div>
+        <div class="use">When two players are within a point of each other.</div>
+      </div>
+      <div class="card">
+        <div class="cmd">undo</div>
+        <div class="ans">Take back the last pick entered.</div>
+        <div class="use">The moment you notice a wrong name. Repeatable.</div>
+      </div>
+      <div class="card">
+        <div class="cmd">board · b</div>
+        <div class="ans">Best available by value, all positions.</div>
+        <div class="use">Sanity check when the table surprises you.</div>
+      </div>
+      <div class="card">
+        <div class="cmd">rb · wr · te · qb · k · def</div>
+        <div class="ans">Best available at one position.</div>
+        <div class="use">Rounds 13 and 14, and when a run starts.</div>
+      </div>
+      <div class="card">
+        <div class="cmd">roster · r</div>
+        <div class="ans">Your roster and what you still need.</div>
+        <div class="use">Every few rounds, to catch a hole early.</div>
+      </div>
+      <div class="card">
+        <div class="cmd">picks</div>
+        <div class="ans">Your remaining pick numbers.</div>
+        <div class="use">When you've lost track of how long the wait is.</div>
+      </div>
+      <div class="card">
+        <div class="cmd">quit</div>
+        <div class="ans">Exit. State is already saved.</div>
+        <div class="use">Saves after every pick, automatically.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span> Decisions already made</h2>
+    <p>Each of these was measured against real seasons. Under a clock, don't relitigate them.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Question</th><th>Answer</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Draft by wait cost, or by best available?</td>
+            <td><strong>Wait cost.</strong></td>
+            <td class="n">+30 ± 2 / season, 5/5 seasons</td>
+          </tr>
+          <tr>
+            <td>Should a big snap share or target share move a player up?</td>
+            <td><strong>No.</strong> Tiebreaker only — the consensus already priced it.</td>
+            <td class="n">−12 to −53, lost every way tested</td>
+          </tr>
+          <tr>
+            <td>Chase last year's touchdown scorers?</td>
+            <td><strong>Fade them.</strong> Hot players gave back 91% of the gap; cold ones
+              recovered only 31%.</td>
+            <td class="n">4 seasons, fade ≈3× more reliable</td>
+          </tr>
+          <tr>
+            <td>Zero-RB or RB-heavy from pick 6?</td>
+            <td><strong>Neither.</strong> Both swing wildly by season; wait cost was the only
+              rule positive in all five.</td>
+            <td class="n">Zero-RB +104 → −118 by season</td>
+          </tr>
+          <tr>
+            <td>Draft for upside, since 6 of 8 make the playoffs anyway?</td>
+            <td><strong>No.</strong> Chasing ceiling lost — and lost worst in the playoff
+              weeks, where the theory said it should help most.</td>
+            <td class="n">−3.3 ± 1.4 on weeks 15–17</td>
+          </tr>
+          <tr>
+            <td>Is maximising season points even the right target?</td>
+            <td><strong>Yes.</strong> Scored on weeks 15–17 alone, the rule wins by the same
+              margin per week. The proxy holds.</td>
+            <td class="n">+4.9 ± 1.2 over 3 weeks</td>
+          </tr>
+          <tr>
+            <td>Kicker and defense?</td>
+            <td><strong>Last two rounds. Never earlier.</strong></td>
+            <td class="n">zero VORP by construction</td>
+          </tr>
+          <tr>
+            <td>Backup QB or TE on the bench?</td>
+            <td><strong>Fine.</strong> Discounting them was tried and lost.</td>
+            <td class="n">reverted after measurement</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">07</span> When something goes wrong</h2>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Symptom</th><th>Do this</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>A name matches several players and it asks <em>which?</em></td>
+            <td>Type the number, or type more of the name. A command word
+              (<code>go</code>, <code>undo</code>) cancels out cleanly.</td>
+          </tr>
+          <tr>
+            <td>You typed the wrong player</td>
+            <td><code>undo</code>, then retype. Repeat <code>undo</code> to walk back further.</td>
+          </tr>
+          <tr>
+            <td>Yahoo's pick number and the terminal's disagree</td>
+            <td>You dropped or double-entered a pick. <code>undo</code> back to where they
+              agree and re-enter. <strong>Glance at this every few picks</strong> — the prompt
+              shows <code>[pick N]</code>.</td>
+          </tr>
+          <tr>
+            <td>Terminal closed or laptop slept</td>
+            <td>Re-run <code>python3 draft_day.py</code>. It resumes from
+              <code>draft_state.json</code> and tells you how many picks it restored.</td>
+          </tr>
+          <tr>
+            <td>It says a player is already off the board</td>
+            <td>He was already entered, or he's a keeper. Check with <code>board</code>.</td>
+          </tr>
+          <tr>
+            <td>Everything is broken and the clock is running</td>
+            <td>Printed cheat sheet. Take the best player at a position you still need,
+              preferring the one with a longer wait until your next pick.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note alarm">
+      <h3>The one unrecoverable mistake</h3>
+      <p>A pick entered wrong and left wrong. Every pick number after it is then off by one,
+        and every survival estimate is computed against the wrong clock for the rest of the
+        draft. Nothing else on this page matters as much as keeping the count honest.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">08</span> After the draft</h2>
+    <ul>
+      <li><strong>Save the state file.</strong> <code>draft_state.json</code> is the record of
+        who took what — it's the seed for opponent modelling next year.</li>
+      <li><strong>Waiver priority is a depleting resource.</strong> Rolling list, not FAAB, so
+        every claim costs you position. Spend it on workload changes, not on one big week.</li>
+      <li><strong>Watch opportunity, not points.</strong> Measured at <strong>+28 ± 4</strong> a
+        season versus +17 for chasing the scoreboard — the difference between them, +11 ± 3, is
+        real. This is where usage data <em>does</em> pay, because in October the market is
+        stale in a way it never is in August.</li>
+      <li><strong>Your playoffs are weeks 15–17</strong>, six of eight teams make it, and
+        benched players aren't locked — so late-swap is available every week.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <div>Generated from the same board the live assistant uses — regenerate any time with
+      <code>python3 cheatsheet.py</code>.</div>
+    <div>Consensus rankings scraped 7 August 2026 · 79 invariant tests passing ·
+      every figure on this page re-measurable with <code>python3 verify.py --full</code>.</div>
+  </footer>
+
+</div>
